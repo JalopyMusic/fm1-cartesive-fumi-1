@@ -27,6 +27,8 @@ Identities are `FM-1_7` + major, minor and patch as two digits each; the FM-1 re
   Mokugyo likewise, each in its own measure. The community patches are untouched.
 - **The loop's ornaments act on the loop's notes.** A trill, vibrato or damp recorded in a layer now works
   on that layer's note; before, a recorded ornament reached for whatever the hands held.
+- **Fixed: a note could drone.** Two keys held in poly, GLO tapped to mono, the top key released: the key
+  still held got a second voice and one of them never let go (since 1.0.0). Found in review.
 - The saved setup is migrated from 1.0.4 / 1.0.5: instruments from Taiko on move up one slot so the setup
   keeps its instrument; Trill feel starts at its new default.
 - The site's About page and the browser instrument's help now carry the instruments, what comes from the

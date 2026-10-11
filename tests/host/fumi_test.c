@@ -390,9 +390,44 @@ int main(void)
         printf("  feel 0: short gap share %.2f, velocities %u %u %u\n", r, midi_vel[0], midi_vel[1], midi_vel[2]);
         CHECK("feel 0: even spacing", r > 0.46 && r < 0.54);
         CHECK("feel 0: every stroke normal", midi_nvel >= 3u && midi_vel[0] == 100u && midi_vel[1] == 100u && midi_vel[2] == 100u);
-        fm_set(P_TRILL_ON, 0);
+        /* the strong-pluck key held with the trill on: one stroke on the press, the pair restarting on it (review) */
         fm_set(P_TRILL_VAR, 100);
+        fm_ornament(ORN_STRONG, 1);
+        midi_nvel = 0;
+        fm_key(5, 1);
+        run(0, 22016);
+        fm_key(5, 0);
+        fm_ornament(ORN_STRONG, 0);
+        printf("  strong key + trill: %u strokes in 500 ms, the second %d ms after the press\n", midi_nvel, midi_nvel >= 2u ? (midi_t[1] - midi_t[0]) / 44 : -1);
+        CHECK("the strong-pluck key with the trill on: one stroke on the press, the ta one short gap later",
+              midi_nvel >= 2u && midi_vel[0] == 127u && (midi_t[1] - midi_t[0]) / 44 > 118 && (midi_t[1] - midi_t[0]) / 44 < 180);
         run(0, 44032);
+        /* mono back to the held key on a key-up is not a press: no strong accent (review) */
+        fm_set(P_MONO, 1);
+        fm_key(5, 1);
+        run(0, 4096);
+        fm_key(8, 1);
+        run(0, 4096);
+        midi_nvel = 0;
+        fm_key(8, 0);
+        run(0, 2048);
+        CHECK("back to the held key on a key-up: a normal stroke, not a hard KA", midi_nvel >= 1u && midi_vel[0] < 115u);
+        fm_key(5, 0);
+        fm_set(P_MONO, 0);
+        fm_set(P_TRILL_ON, 0);
+        run(0, 44032);
+        /* poly to mono with two keys held, the top one let go: nothing drones (a 1.0.5 defect found in review) */
+        fm_key(5, 1);
+        fm_key(8, 1);
+        run(0, 4096);
+        fm_set(P_MONO, 1);
+        run(0, 4096);
+        fm_key(8, 0);
+        run(0, 4096);
+        fm_key(5, 0);
+        run(0, 44032);
+        CHECK("poly to mono with two keys down, both released: silence", fm_nvoices == 0);
+        fm_set(P_MONO, 0);
         /* oroshi on the ornament key: slow, then faster by a constant ratio, at the rate within the set time */
         fm_set(P_TRILL_OROSHI, 1);                /* Short: about 1.5 s from slow to the trill rate */
         fm_key(5, 1);

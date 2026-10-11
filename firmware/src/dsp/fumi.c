@@ -371,26 +371,29 @@ static void oroshi_start(int g)                   /* the ornament key: from abou
 }
 
 static void pluck_vel(int i, int id, float cents, float next_up, int fresh, int slot, int vel, float trim);
-/* (re)start voice i on pitch `cents` (from A4) for key id; fresh = from silence. A press: strong while the trill
- * is on (the first KA; the pair restarts on it) or under the strong-pluck ornament, else normal */
-static void pluck(int i, int id, float cents, float next_up, int fresh, int slot)
+/* (re)start voice i on pitch `cents` (from A4) for key id; fresh = from silence. A press (press = 1) is strong
+ * while the trill is on (the first KA) or under the strong-pluck ornament, else normal; mono's return to the key
+ * still held on a key-up (press = 0) is normal. Either way a running trill restarts its pair on the note. */
+static void pluck_on(int i, int id, float cents, float next_up, int fresh, int slot, int press)
 {
     int g = group_of(id), vel;
     float trim;
-    if (orn[g][ORN_STRONG]) {
+    if (orn[g][ORN_STRONG])
         accent(1, 1.0f, 0, &vel, &trim);
-    } else if (trill_on(g)) {
+    else if (press && trill_on(g))
         accent(1, feel(), 0, &vel, &trim);
+    else
+        accent(0, 0.0f, 0, &vel, &trim);
+    if (trill_on(g)) {
         if (!tr[g].running && g == 0 && orn[0][ORN_TRILL])
             oroshi_start(g);                      /* the ornament key held first, the note after: the oroshi starts here */
         else if (!tr[g].running)
             tr[g].mult = tr[g].start = 1.0f;
         trill_restart(g);
-    } else {
-        accent(0, 0.0f, 0, &vel, &trim);
     }
     pluck_vel(i, id, cents, next_up, fresh, slot, vel, trim);
 }
+static void pluck(int i, int id, float cents, float next_up, int fresh, int slot) { pluck_on(i, id, cents, next_up, fresh, slot, 1); }
 static void pluck_vel(int i, int id, float cents, float next_up, int fresh, int slot, int vel, float trim)
 {
     voice_t *v = &vc[i];
@@ -531,11 +534,15 @@ static void note_off(int id)
     if ((par[P_MONO] || par[P_SLIDE]) && nheld > 0 && vc[i].down) {   /* back to the key still held */
         int back = held[nheld - 1];
         float nu, c = back < FM_NKEY ? key_cents(back, &nu) : vc[i].base;
+        if (find_voice(back) >= 0) {              /* it sounds already (poly before the switch): this one just goes */
+            release(i);
+            return;
+        }
         lv = i;
         if (par[P_SLIDE])
             slide_to(lv, back, c, nu);
         else
-            pluck(lv, back, c, nu, 0, 0);
+            pluck_on(lv, back, c, nu, 0, 0, 0);
         return;
     }
     release(i);
@@ -1152,11 +1159,11 @@ static void trill_block(int g)                    /* every block: the group's tr
         accent(tr[g].ta ? 2 : 0, q, 1, &vel, &trim);
         pluck_vel(v, id, vc[v].base, vc[v].next_up, 0, vc[v].slot, vel, trim);
         if (tr[g].mult > 1.0f) {                  /* oroshi: each gap shorter than the last by a constant ratio */
-            static const float T[4] = {0.0f, 1.5f, 3.0f, 5.0f};
+            static const float T[4] = {1.0f, 1.5f, 3.0f, 5.0f};
             float r = 1.0f - trill_period * (tr[g].start - 1.0f) / (T[par[P_TRILL_OROSHI] & 3] * FM_SR);
             r = r < 0.3f ? 0.3f : r > 0.98f ? 0.98f : r;
             tr[g].mult *= r;
-            if (tr[g].mult < 1.0f)
+            if (tr[g].mult < 1.0f || par[P_TRILL_OROSHI] == 0)   /* set to None while it ran: at the rate now */
                 tr[g].mult = 1.0f;
         }
         tr[g].ta = !tr[g].ta;
