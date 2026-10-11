@@ -30,13 +30,42 @@ static int project_valid(void)
     return 1;
 }
 
+/* a format-2 project (1.0.4, 1.0.5): the same parameters up to the looper's; Kokyu was put before Taiko, so an
+ * instrument from Taiko on moves up one; Trill var became Trill feel (a new meaning: its new default); the trill's
+ * defaults are new */
+static int project_migrate(const uint8_t *raw, int n)
+{
+    uint32_t i;
+    if (n < (int)(8u + 2u * PROJ_NPAR_V2 + 1u))
+        return 0;
+    project_defaults();
+    for (i = 0; i < PROJ_NPAR_V2; i++)
+        proj.par[i] = (int16_t)((uint32_t)raw[8 + 2 * i] | (uint32_t)raw[9 + 2 * i] << 8);
+    if (proj.par[P_VOICE] >= 6)
+        proj.par[P_VOICE]++;
+    proj.par[P_TRILL_VAR] = fm_param_info(P_TRILL_VAR)->def;
+    proj.leds = raw[8 + 2 * PROJ_NPAR_V2];
+    return project_valid();
+}
+
 int project_load(void)
 {
     int n;
+    uint8_t raw[sizeof proj];
     memset(&proj, 0, sizeof proj);
-    n = plat_store_load(OBJ_PROJ, &proj, sizeof proj);
-    if (n >= 8 && project_valid())
-        return 0;
+    memset(raw, 0, sizeof raw);
+    n = plat_store_load(OBJ_PROJ, raw, sizeof raw);
+    if (n >= 8) {
+        uint32_t magic = (uint32_t)raw[0] | (uint32_t)raw[1] << 8 | (uint32_t)raw[2] << 16 | (uint32_t)raw[3] << 24;
+        uint32_t format = (uint32_t)raw[4] | (uint32_t)raw[5] << 8 | (uint32_t)raw[6] << 16 | (uint32_t)raw[7] << 24;
+        if (magic == PROJ_MAGIC && format == PROJ_FORMAT) {
+            memcpy(&proj, raw, sizeof proj);  /* an older, shorter project of this format loads with zeros after it */
+            if (project_valid())
+                return 0;
+        } else if (magic == PROJ_MAGIC && format == 2u && project_migrate(raw, n)) {
+            return 0;
+        }
+    }
     project_defaults();
     return -1;
 }

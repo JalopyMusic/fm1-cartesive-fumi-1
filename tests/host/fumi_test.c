@@ -8,7 +8,16 @@
 #include "tu_yin.h"
 #include "../../firmware/src/dsp/fumi.c"
 
-void fm_midi_out(uint32_t st, uint32_t d1, uint32_t d2) { (void)st; (void)d1; (void)d2; }
+static uint32_t midi_vel[64], midi_nvel;          /* the note-ons sent: velocity and position (the strokes, 1.0.6) */
+static int midi_t[64], render_pos;
+void fm_midi_out(uint32_t st, uint32_t d1, uint32_t d2)
+{
+    (void)d1;
+    if (st == 0x90u && midi_nvel < 64u) {
+        midi_t[midi_nvel] = render_pos;
+        midi_vel[midi_nvel++] = d2;
+    }
+}
 
 static float buf[3 * 44100];                      /* mono (left) */
 static int32_t blk[2 * 256];
@@ -19,6 +28,7 @@ static float run(int pos, int n)
     int i, k;
     float pk = 0;
     for (i = 0; i < n; i += 256) {
+        render_pos = pos + i;
         fm_render(blk, 256, 4096);
         for (k = 0; k < 256; k++) {
             float l = (float)blk[2 * k] / 8388608.0f;
@@ -39,6 +49,14 @@ static float peak_of(int from, int to)
     return pk;
 }
 static double db(float x) { return 20.0 * log10(x > 1e-9f ? (double)x : 1e-9); }
+static float rms_of(int from, int to)
+{
+    double a = 0;
+    int i;
+    for (i = from; i < to; i++)
+        a += (double)buf[i] * buf[i];
+    return to > from ? (float)sqrt(a / (to - from)) : 0.0f;
+}
 static int slot_of(const char *name)              /* a built-in instrument's slot by name; -1 if none */
 {
     int i;
@@ -88,6 +106,44 @@ static int onsets(int from, int to)               /* rises of 4 dB within 10 ms 
         }
     }
     return n;
+}
+
+static int onset_times(int from, int to, int *t, int max)   /* as onsets(), the positions kept */
+{
+    int i, n = 0, w = 220, last = -100000;
+    for (i = from + 2 * w; i < to; i += 44) {
+        double a = 0, b = 0;
+        int k;
+        for (k = 0; k < w; k++) {
+            a += (double)buf[i - 2 * w + k] * buf[i - 2 * w + k];
+            b += (double)buf[i - w + k] * buf[i - w + k];
+        }
+        if (b > 2.5 * a && b > 1e-7 && i - last > 2000) {
+            if (n < max)
+                t[n] = i - w;
+            n++;
+            last = i;
+        }
+    }
+    return n < max ? n : max;
+}
+static double centroid(int a, int b)              /* the spectral centroid of buf[a..b), Hz: Goertzel at 64 log-spaced frequencies */
+{
+    int k, n;
+    double num = 0, den = 0;
+    for (k = 0; k < 64; k++) {
+        double f = 100.0 * pow(2.0, k / 8.0), w = 2.0 * M_PI * f / 44100.0, re = 0, im = 0, m;
+        if (f > 20000.0)
+            break;
+        for (n = a; n < b; n++) {
+            re += buf[n] * cos(w * (n - a));
+            im += buf[n] * sin(w * (n - a));
+        }
+        m = re * re + im * im;
+        num += f * m;
+        den += m;
+    }
+    return den > 0 ? num / den : 0;
 }
 
 /* a sustaining test voice: OP1 carrier, level 99, held at L3 = 99, release R4 = 99 (fast) */
@@ -235,6 +291,246 @@ int main(void)
     fm_key(5, 0);
     fm_set(P_TRILL_ON, 0);
     run(0, 8192);
+    /* the trill that sounds played (1.0.6): strokes in pairs, ka-ta, the ta lighter; the first stroke the hardest;
+     * a key press restarts the pair; Trill feel 0 is the even machine of before; oroshi starts slow and speeds
+     * up on the ornament key; the loop trills its own notes. Koto Pluck now responds to velocity. */
+    {
+        int t[64], n, k, gap[64];
+        double r, avg, lv[64];
+        fm_init();
+        fm_set(P_VOICE, koto_a());
+        fm_set(P_REVERB, 0);
+        fm_set(P_YOIN, 0);
+        fm_set(P_LEVEL, 60);
+        fm_set(P_TRILL_RATE, 50);                 /* a period of 155 ms */
+        fm_set(P_TRILL_VAR, 100);                 /* Trill feel: full */
+        fm_set(P_TRILL_PAIR, 42);
+        fm_set(P_TRILL_JIT, 0);
+        fm_set(P_TRILL_OROSHI, 0);
+        run(0, 256);
+        midi_nvel = 0;
+        fm_key(5, 1);                             /* trill off: an ordinary press is normal */
+        run(0, 4096);
+        fm_key(5, 0);
+        run(0, 8192);
+        CHECK("trill off: a key press is a normal stroke (velocity 100)", midi_nvel == 1u && midi_vel[0] == 100u);
+        midi_nvel = 0;
+        fm_ornament(ORN_STRONG, 1);
+        fm_key(5, 1);
+        run(0, 4096);
+        fm_key(5, 0);
+        fm_ornament(ORN_STRONG, 0);
+        run(0, 8192);
+        CHECK("the strong-pluck ornament: a strong stroke (velocity 127)", midi_nvel == 1u && midi_vel[0] == 127u);
+        /* ARP trill, a key held two seconds: KA ta ka ta ... */
+        fm_set(P_TRILL_ON, 1);
+        midi_nvel = 0;
+        fm_key(5, 1);
+        run(0, 88064);
+        fm_key(5, 0);
+        n = (int)midi_nvel;                       /* the strokes, from the note-ons (to the 256-frame render) */
+        for (k = 0; k < n; k++)
+            t[k] = midi_t[k];
+        for (k = 0; k + 1 < n; k++)
+            gap[k] = t[k + 1] - t[k];
+        printf("  trill pairs: %d strokes;", n);
+        for (k = 0; k < 8 && k + 1 < n; k++)
+            printf(" %d", gap[k] / 44);
+        printf(" ms; velocities");
+        for (k = 0; k < 6 && (uint32_t)k < midi_nvel; k++)
+            printf(" %u", midi_vel[k]);
+        printf("\n");
+        CHECK("trill: twelve strokes in two seconds at the middle rate", n >= 12 && n <= 16);
+        CHECK("the first stroke is the strong KA, then ta (light), ka (normal), ta ...",
+              midi_nvel >= 5u && midi_vel[0] == 127u && midi_vel[1] < 72u && midi_vel[2] >= 90u && midi_vel[2] <= 104u && midi_vel[3] < 72u);
+        r = 0;
+        avg = 0;
+        for (k = 2; k + 1 < 10 && k + 1 < n - 1; k += 2) {   /* pairs after the first: ka->ta short, ta->ka long */
+            r += (double)gap[k] / (gap[k] + gap[k + 1]);
+            avg += (gap[k] + gap[k + 1]) * 0.5;
+        }
+        r /= 4;
+        avg /= 4;
+        printf("  short gap share %.2f (want 0.42), stroke period %.0f ms (want 155)\n", r, avg / 44.1);
+        CHECK("the short gap is 42 %% of the pair", r > 0.37 && r < 0.47);
+        CHECK("the average stroke period is the trill rate", avg / 44.1 > 140.0 && avg / 44.1 < 170.0);
+        CHECK("the gap after the first KA is a little longer than the later short gaps (the hand recovers)",
+              gap[0] > gap[2] && gap[0] < gap[1]);
+        for (k = 0; k < n && k < 64; k++)
+            lv[k] = db(rms_of(t[k] + 256, t[k] + 256 + 2205));   /* the 50 ms after each stroke */
+        printf("  stroke levels: KA %.1f, ta %.1f, ka %.1f, ta %.1f, ka %.1f dB\n", lv[0], lv[1], lv[2], lv[3], lv[4]);
+        CHECK("the ta is at least 3 dB under the ka, the KA above the ka", lv[2] - lv[1] > 3.0 && lv[4] - lv[3] > 3.0 && lv[0] > lv[2] + 0.7);
+        run(0, 44032);
+        /* a key press restarts the pair: the ta follows the press after one short gap, whatever the clock said */
+        midi_nvel = 0;
+        fm_key(5, 1);
+        run(0, 3072);                             /* 70 ms in */
+        fm_key(8, 1);
+        run(0, 22016);
+        fm_key(5, 0);
+        fm_key(8, 0);
+        n = (int)midi_nvel;
+        printf("  after a second key 70 ms in: next stroke %d ms after it\n", n >= 3 ? (midi_t[2] - midi_t[1]) / 44 : -1);
+        CHECK("a key press restarts the pair: its ta comes one short gap later (not on the old clock)",
+              n >= 3 && midi_vel[1] == 127u && (midi_t[2] - midi_t[1]) / 44 > 118 && (midi_t[2] - midi_t[1]) / 44 < 180);
+        run(0, 44032);
+        /* Trill feel 0: even gaps, identical strokes, no first-stroke accent (the ST-50's machine) */
+        fm_set(P_TRILL_VAR, 0);
+        midi_nvel = 0;
+        fm_key(5, 1);
+        run(0, 88064);
+        fm_key(5, 0);
+        n = (int)midi_nvel;
+        for (k = 0; k + 1 < n; k++)
+            gap[k] = midi_t[k + 1] - midi_t[k];
+        r = 0;
+        for (k = 1; k + 1 < 9 && k + 1 < n - 1; k += 2)
+            r += (double)gap[k] / (gap[k] + gap[k + 1]);
+        r /= 4;
+        printf("  feel 0: short gap share %.2f, velocities %u %u %u\n", r, midi_vel[0], midi_vel[1], midi_vel[2]);
+        CHECK("feel 0: even spacing", r > 0.46 && r < 0.54);
+        CHECK("feel 0: every stroke normal", midi_nvel >= 3u && midi_vel[0] == 100u && midi_vel[1] == 100u && midi_vel[2] == 100u);
+        fm_set(P_TRILL_ON, 0);
+        fm_set(P_TRILL_VAR, 100);
+        run(0, 44032);
+        /* oroshi on the ornament key: slow, then faster by a constant ratio, at the rate within the set time */
+        fm_set(P_TRILL_OROSHI, 1);                /* Short: about 1.5 s from slow to the trill rate */
+        fm_key(5, 1);
+        run(0, 256);
+        midi_nvel = 0;
+        fm_ornament(ORN_TRILL, 1);
+        run(0, 132096);                           /* 3 s */
+        fm_ornament(ORN_TRILL, 0);
+        fm_key(5, 0);
+        n = (int)midi_nvel;                       /* [0] the KA at the ornament key */
+        for (k = 0; k < n; k++)
+            t[k] = midi_t[k];
+        for (k = 0; k + 1 < n; k++)
+            gap[k] = t[k + 1] - t[k];
+        printf("  oroshi short:");
+        for (k = 0; k < 12 && k + 1 < n; k++)
+            printf(" %d", gap[k] / 44);
+        printf(" ms; velocities");
+        for (k = 0; k < 8 && k < n; k++)
+            printf(" %u", midi_vel[k]);
+        printf("\n");
+        CHECK("oroshi: the first stroke is the KA, the first gap about four times the period (620 ms, the hand recovering)",
+              n > 8 && midi_vel[0] == 127u && gap[0] / 44 > 560 && gap[0] / 44 < 780);
+        CHECK("oroshi: the gaps shrink, one after the other", n > 8 && gap[1] < gap[0] && gap[2] < gap[1] && gap[3] < gap[2]);
+        {
+            uint32_t late = 127;
+            for (k = n - 4; k < n; k++)
+                if (midi_vel[k] < late)
+                    late = midi_vel[k];
+            CHECK("oroshi: the strokes after the KA start at normal strength and the ta lightens as it speeds up",
+                  n > 8 && midi_vel[1] >= 88u && late < 72u);
+        }
+        {
+            int reached = -1;
+            for (k = 0; k + 1 < n; k++)
+                if ((gap[k] + gap[k + 1]) / 88 < 155 * 1.25) {   /* a pair at the rate */
+                    reached = (t[k] - t[0]) / 44;
+                    break;
+                }
+            printf("  oroshi short: at the trill rate %d ms after the ornament key\n", reached);
+            CHECK("oroshi short: at the trill rate within about 1.5 s", reached > 900 && reached < 2200);
+        }
+        run(0, 44032);
+        fm_set(P_TRILL_ON, 1);                    /* the ARP trill stays plain whatever the setting */
+        midi_nvel = 0;
+        fm_key(5, 1);
+        run(0, 44032);
+        fm_key(5, 0);
+        fm_set(P_TRILL_ON, 0);
+        n = (int)midi_nvel;
+        CHECK("the ARP trill is plain whatever the oroshi setting", n > 4 && (midi_t[1] - midi_t[0]) / 44 < 200);
+        fm_set(P_TRILL_OROSHI, 0);
+        run(0, 44032);
+    }
+    {   /* Kokyu 胡弓 (1.0.6): the bowed voice, placed before Taiko as on the ST-50; the note swells in */
+        double a, b, c;
+        CHECK("fourteen instruments; Kokyu is the seventh, before Taiko",
+              fm_patch_count() == 14 && slot_of("Kokyu") == 6 && slot_of("Taiko") == 7 && !strcmp(fm_patch_ja(6), "\xe8\x83\xa1\xe5\xbc\x93"));
+        fm_init();
+        fm_set(P_VOICE, slot_of("Kokyu"));
+        fm_set(P_REVERB, 0);
+        fm_set(P_YOIN, 50);
+        fm_set(P_LEVEL, 60);
+        run(0, 256);
+        fm_key(5, 1);
+        run(0, 88064);
+        a = db(rms_of(0, 2646));
+        b = db(rms_of(2646, 13230));
+        c = db(rms_of(44100, 88064));
+        printf("  Kokyu: first 60 ms %.1f dB, 60-300 ms %.1f dB, 1-2 s %.1f dB; pitch %.1f cents from A3\n", a, b, c,
+               tu_cents(tu_yin(buf + 44100, 8820, 44100.0), 220.0));
+        CHECK("Kokyu: bowed, the note swells in (the first 60 ms 20 dB under the sustain, 60-300 ms within 6 dB of it)",
+              c - a > 20.0 && c - b < 6.0 && c > -50.0);
+        CHECK_NEAR("Kokyu: on the key's pitch (三 = A3)", tu_cents(tu_yin(buf + 44100, 8820, 44100.0), 220.0), 0.0, 25.0);
+        fm_key(5, 0);
+        run(0, 44032);
+    }
+    {   /* the loop trills its own notes: a key and the trill ornament recorded, played back with the hands off */
+        uint32_t P;
+        int t[64], n;
+        fm_init();
+        fm_set(P_VOICE, slot_of("Mokugyo"));
+        fm_set(P_REVERB, 0);
+        fm_set(P_YOIN, 0);
+        fm_set(P_LEVEL, 60);
+        fm_set(P_TRILL_RATE, 50);
+        fm_set(P_LOOP_BPM, 120);
+        fm_set(P_LOOP_BEATS, 8);
+        fm_loop_rec();
+        run(0, 256);
+        fm_key(5, 1);
+        run(0, 256);
+        fm_ornament(ORN_TRILL, 1);
+        run(0, 44032);
+        fm_ornament(ORN_TRILL, 0);
+        fm_key(5, 0);
+        run(0, 8192);
+        fm_loop_rec();
+        run(0, 256);
+        P = fm_loop_len * 32u;
+        run(0, (int)P - 256);
+        run(0, (int)P);                           /* a full pass, nothing live */
+        n = onset_times(0, 44032, t, 64);
+        printf("  loop trill: %d strokes in the first second of a pass\n", n);
+        CHECK("the loop's trill ornament re-plucks the loop's own note", n >= 5);
+        fm_loop_clear();
+        run(0, 256);
+    }
+    {   /* Koto Pluck responds to how hard it is struck: a light stroke quieter and duller, a strong one brighter */
+        double l64, l100, l127, c64, c100, c127;
+        fm_init();
+        fm_set(P_VOICE, koto_a());
+        fm_set(P_REVERB, 0);
+        fm_set(P_YOIN, 0);
+        fm_set(P_LEVEL, 60);
+        run(0, 256);
+        pluck_vel(0, 5, -1500.0f, 100.0f, 1, 0, 100, 1.0f);
+        run(0, 11008);
+        l100 = db(rms_of(0, 11008));              /* over the first 250 ms, as the voicing harness measured */
+        c100 = centroid(0, 2646);
+        release(0);
+        run(0, 44032);
+        pluck_vel(0, 5, -1500.0f, 100.0f, 1, 0, 64, 1.0f);
+        run(0, 11008);
+        l64 = db(rms_of(0, 11008));
+        c64 = centroid(0, 2646);
+        release(0);
+        run(0, 44032);
+        pluck_vel(0, 5, -1500.0f, 100.0f, 1, 0, 127, 1.0f);
+        run(0, 11008);
+        l127 = db(rms_of(0, 11008));
+        c127 = centroid(0, 2646);
+        release(0);
+        run(0, 44032);
+        printf("  Koto Pluck by velocity: 64 %.1f dB %.0f Hz, 100 %.1f dB %.0f Hz, 127 %.1f dB %.0f Hz\n", l64, c64, l100, c100, l127, c127);
+        CHECK("Koto Pluck at velocity 64: 3 to 7 dB quieter and darker than at 100", l100 - l64 > 3.0 && l100 - l64 < 7.0 && c64 < c100 * 0.95);
+        CHECK("Koto Pluck at velocity 127: brighter than at 100 (a fifth more centroid), not much louder", c127 > c100 * 1.2 && l127 - l100 < 2.0);
+    }
     {
         uint8_t pk[128];
         sustain_patch(pk, 99);
@@ -715,16 +1011,16 @@ int main(void)
         fm_loop_rec();
         run(0, 256);
         run(0, 256 * 20);                         /* into the next pass, inside the ornament */
-        CHECK("the loop turned the ornament on", orn[ORN_VIB] == 1);
+        CHECK("the loop turned the ornament on", orn[1][ORN_VIB] == 1);
         fm_loop_play();
         run(0, 256);
-        CHECK("stop turns the loop's ornament off", orn[ORN_VIB] == 0);
+        CHECK("stop turns the loop's ornament off", orn[1][ORN_VIB] == 0);
         fm_loop_play();
         run(0, 256 * 21);
-        CHECK("playing again: on again", orn[ORN_VIB] == 1);
+        CHECK("playing again: on again", orn[1][ORN_VIB] == 1);
         fm_loop_clear();
         run(0, 256);
-        CHECK("clear turns it off", orn[ORN_VIB] == 0 && fm_loop_state == LP_IDLE);
+        CHECK("clear turns it off", orn[1][ORN_VIB] == 0 && fm_loop_state == LP_IDLE);
         /* 4: an overdubbed note held longer than the loop: the loop's copy lets go when the hand does */
         fm_loop_rec();
         run(0, 256);

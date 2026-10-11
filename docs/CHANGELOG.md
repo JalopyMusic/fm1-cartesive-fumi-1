@@ -3,6 +3,35 @@
 Identities are `FM-1_7` + major, minor and patch as two digits each; the FM-1 reports the identity
 (`python3 tools/fm1_install.py --info`).
 
+## 1.0.6 (11 Oct 2026) — `FM-1_7010006`
+
+- **A trill that sounds played.** Strokes come in pairs, *ka-ta*, the short gap 42 % of the pair; the first
+  stroke of a trill is the hardest (velocity 127, +1.5 dB), each *ta* light (64, −4 dB), each later *ka*
+  normal, and no two strokes alike. A key pressed while the trill is on is a hard *KA* and restarts the pair,
+  so the strokes line up with the hand. Jitter sits mostly on the long gap. **Trill feel** (the old Trill
+  var) is one knob from 0, the ST-50's even machine, to 100, the full pairs and accents. The strong-pluck
+  ornament plays the hard stroke too, and is now audible. MIDI out carries the velocities.
+- **Oroshi 颪.** A setting for the trill ornament key (the second black key in ornament mode): None, Short,
+  Medium or Long, the time the trill takes from slow to the trill rate (about 1.5, 3 and 5 s). It starts at
+  a quarter of the rate, each gap shorter than the last by a constant ratio, pairs and the light *ta*
+  arriving as it speeds up; it restarts when the ornament key is pressed again and carries on across new
+  notes while the key is held. The ARP button's trill stays plain.
+- **The Trill pages on GLO.** Hold GLO: Trill feel, pair gap, ta level, oroshi; hold again: first stroke,
+  jitter. Saved with the setup. A tap on GLO is still mono / poly.
+- **Kokyū 胡弓**, the ST-50's bowed voice, placed after the winds and before Taiko as on its slider: Tim
+  Garrett's Viola.Ens (patches.fm, TX7-80B), the attack slowed so the note swells in (the first 60 ms about
+  30 dB under the sustain) and a bow tremolo added; an octave corrected (the source relied on a transpose
+  the engine does not read). Fourteen instruments.
+- **FuMi's own instruments respond to velocity**, measured: a light stroke on Koto Pluck is 5 dB quieter and
+  a third duller, a hard one a third brighter and 1 dB louder; Koto Ring, Koto Warm, Harp, Hyoshigi and
+  Mokugyo likewise, each in its own measure. The community patches are untouched.
+- **The loop's ornaments act on the loop's notes.** A trill, vibrato or damp recorded in a layer now works
+  on that layer's note; before, a recorded ornament reached for whatever the hands held.
+- The saved setup is migrated from 1.0.4 / 1.0.5: instruments from Taiko on move up one slot so the setup
+  keeps its instrument; Trill feel starts at its new default.
+- The site's About page and the browser instrument's help now carry the instruments, what comes from the
+  ST-50, the ornament keys, the trill and the looper.
+
 ## 1.0.5 (10 Oct 2026) — `FM-1_7010005`
 
 - **Each loop layer keeps its instrument.** Loop a koto phrase, turn PRESETS to the shakuhachi and play

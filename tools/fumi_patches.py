@@ -115,6 +115,21 @@ PATCHES = [
         op(r=(54, 99, 52, 99), l=(99, 99, 66, 0), ol=64, fc=0, det=11, kvs=4, ams=2, bp=27, rd=15, rc=1),
         op(r=(99, 99, 49, 99), l=(99, 99, 93, 0), ol=99, fc=10),
     ], fb=7, oks=1, pr=(99, 99, 99, 99), pl=(50, 50, 50, 50), lfs=26, lfd=39, lpmd=6, lamd=0, lks=0, lfw=4, lpms=2, trnsp=24)),
+    # 胡弓, the bowed string, the ST-50's 11th voice (1.0.6): Tim Garrett's Viola.Ens (patches.fm, TX7-80B.SYX), its
+    # attack slowed (carrier R1 38/49 -> 34/42, modulator R1 99 -> 60/70 so the tone brightens as the bow bites) and
+    # a bow tremolo added (LFO amplitude depth 30 on the two carriers, AMS 3, ~5.5 Hz, a short delay); the patch's
+    # own pitch modulation off, FuMi's vibrato being the player's. The original is written an octave down (transpose
+    # 12, which FuMi's engine does not read), so every ratio is halved to put it on the key's pitch. Measured in the
+    # session: the first 60 ms about 30 dB under the sustain, full by 300 ms. Winds, then the bowed voice, then
+    # percussion, as on the ST-50.
+    ('Kokyu', '胡弓', voice('Kokyu', 2, [  # was Viola.Ens            # patches.fm: Tim Garrett, TX7-80B.SYX; attack slowed, tremolo added
+        op(r=(34, 22, 18, 45), l=(97, 97, 86, 0), ol=89, fc=2, rs=1, bp=0, ams=3),
+        op(r=(60, 17, 13, 37), l=(99, 98, 98, 0), ol=76, fc=1, det=9, rs=1, ld=2, rd=2, lc=3),
+        op(r=(42, 18, 17, 56), l=(99, 90, 85, 0), ol=99, fc=1, kvs=4, rs=3, bp=0, ams=3),
+        op(r=(55, 26, 0, 45), l=(99, 98, 90, 0), ol=86, fc=1, kvs=3, rs=3, bp=46, ld=4, rd=13, lc=3),
+        op(r=(70, 46, 55, 36), l=(99, 90, 83, 0), ol=74, fc=4, det=8, kvs=3, ams=1, rs=2, bp=42, ld=1, rd=15, lc=3),
+        op(r=(31, 42, 50, 51), l=(99, 99, 99, 0), ol=36, fc=7, ff=17, det=12, mode=1, kvs=1, bp=46, ld=13),
+    ], fb=7, oks=0, pr=(82, 94, 0, 0), pl=(48, 51, 50, 50), lfs=40, lfd=25, lpmd=0, lamd=30, lks=0, lfw=4, lpms=1, trnsp=12)),
     ('Taiko', '太鼓', voice('Taiko', 17, [                 # patches.fm: Tim Garrett, TX7-26B.SYX, renamed from 'Timpani.2'
         op(r=(87, 37, 98, 33), l=(99, 0, 0, 0), ol=99, fc=0, kvs=2, rs=3),
         op(r=(87, 76, 27, 23), l=(99, 72, 0, 0), ol=57, fc=0, kvs=1, rs=2, bp=41),
@@ -130,54 +145,59 @@ PATCHES = [
     # few ms behind for the two sticks, their modulators inharmonic and collapsing in a few ms; the third pair a
     # feedback noise burst for the first instant.
     ("Hyoshigi", "拍子木", voice("Hyoshigi", 5, [
-        op(r=(99, 69, 99, 99), l=(99, 0, 0, 0), ol=99, fc=3, ff=26, mode=1),
+        op(r=(99, 69, 99, 99), l=(99, 0, 0, 0), ol=99, fc=3, ff=26, mode=1, kvs=3),
         op(r=(99, 92, 99, 99), l=(99, 0, 0, 0), ol=92, fc=3, ff=49, mode=1),
-        op(r=(90, 71, 99, 99), l=(99, 0, 0, 0), ol=96, fc=3, ff=41, mode=1),
+        op(r=(90, 71, 99, 99), l=(99, 0, 0, 0), ol=96, fc=3, ff=41, mode=1, kvs=3),
         op(r=(99, 93, 99, 99), l=(99, 0, 0, 0), ol=88, fc=3, ff=65, mode=1),
-        op(r=(99, 86, 99, 99), l=(99, 0, 0, 0), ol=86, fc=3, ff=10, mode=1),
+        op(r=(99, 86, 99, 99), l=(99, 0, 0, 0), ol=86, fc=3, ff=10, mode=1, kvs=3),
         op(r=(99, 95, 99, 99), l=(99, 0, 0, 0), ol=96, fc=3, ff=33, mode=1),
     ], fb=7, lfs=0)),
     # 木魚: the wooden fish, a hollow block struck with a padded beater to pace the chanting: a round, pitched tok.
     # A sine carrier on the key's pitch with a quick downward scoop (the pitch envelope starts above and falls in
     # ~20 ms), a modulator at 1.41 for the hollow wood, an octave stack for the knock, 150-250 ms decay.
     ("Mokugyo", "木魚", voice("Mokugyo", 5, [
-        op(r=(99, 58, 99, 99), l=(99, 0, 0, 0), ol=99, rs=2),
+        op(r=(99, 58, 99, 99), l=(99, 0, 0, 0), ol=99, rs=2, kvs=3),
         op(r=(99, 79, 99, 99), l=(99, 0, 0, 0), ol=68, ff=41, rs=2),
-        op(r=(99, 70, 99, 99), l=(99, 0, 0, 0), ol=90, fc=2, rs=2),
+        op(r=(99, 70, 99, 99), l=(99, 0, 0, 0), ol=90, fc=2, rs=2, kvs=3),
         op(r=(99, 84, 99, 99), l=(99, 0, 0, 0), ol=62, fc=2, ff=40, rs=2),
-        op(r=(99, 86, 99, 99), l=(99, 0, 0, 0), ol=80, fc=0, ff=70, rs=2),
+        op(r=(99, 86, 99, 99), l=(99, 0, 0, 0), ol=80, fc=0, ff=70, rs=2, kvs=3),
         op(r=(99, 92, 99, 99), l=(99, 0, 0, 0), ol=80, fc=5, ff=30, rs=2),
-    ], fb=4, pr=(96, 99, 99, 99), pl=(50, 50, 50, 58), lfs=0)),    ("Koto Pluck", "爪音", voice("Koto Pluck", 5, [  # was KOTO A
-        op(r=(99, 45, 71, 60), l=(99, 72, 0, 0), ol=87, rs=2, rd=12, rc=0),
-        op(r=(99, 45, 95, 60), l=(99, 90, 0, 0), ol=82, fc=2, rs=4),
-        op(r=(99, 58, 34, 60), l=(99, 95, 0, 0), ol=99, rs=2, rd=15, rc=0),
-        op(r=(99, 60, 32, 60), l=(99, 91, 90, 0), ol=91, fc=1, rs=3),
-        op(r=(99, 69, 18, 60), l=(99, 87, 0, 0), ol=82, fc=1, det=9, rs=2),
-        op(r=(99, 26, 10, 60), l=(99, 99, 97, 0), ol=84, fc=1, det=5, rs=2),
+    ], fb=4, pr=(96, 99, 99, 99), pl=(50, 50, 50, 58), lfs=0)),
+    # velocity (1.0.6, for the trill's accents; measured with a harness in the session, RMS over 250 ms and the
+    # centroid of the first 60 ms against velocity 100): carriers set the loudness, modulators the brightness, the
+    # click modulator (OP2) most of all, so a light ta (64) is 5 dB quieter and a third duller and a strong KA (127)
+    # is a third brighter and only 1 dB louder. The community patches are left as their authors wrote them.
+    ("Koto Pluck", "爪音", voice("Koto Pluck", 5, [  # was KOTO A
+        op(r=(99, 45, 71, 60), l=(99, 72, 0, 0), ol=87, rs=2, rd=12, rc=0, kvs=3),
+        op(r=(99, 45, 95, 60), l=(99, 90, 0, 0), ol=82, fc=2, rs=4, kvs=6),
+        op(r=(99, 58, 34, 60), l=(99, 95, 0, 0), ol=99, rs=2, rd=15, rc=0, kvs=3),
+        op(r=(99, 60, 32, 60), l=(99, 91, 90, 0), ol=91, fc=1, rs=3, kvs=5),
+        op(r=(99, 69, 18, 60), l=(99, 87, 0, 0), ol=82, fc=1, det=9, rs=2, kvs=3),
+        op(r=(99, 26, 10, 60), l=(99, 99, 97, 0), ol=84, fc=1, det=5, rs=2, kvs=5),
     ], fb=2)),
     ("Koto Ring", "響", voice("Koto Ring", 5, [  # was KOTO B                 # brighter: the twang stack at ratio 3, harder
-        op(r=(99, 52, 95, 60), l=(99, 87, 0, 0), ol=92, rs=2, rd=12, rc=0),
-        op(r=(99, 93, 32, 60), l=(99, 90, 34, 0), ol=99, fc=3, rs=4),
-        op(r=(99, 99, 32, 60), l=(99, 91, 0, 0), ol=99, rs=2, rd=15, rc=0),
-        op(r=(99, 40, 26, 60), l=(99, 99, 86, 0), ol=84, fc=1, rs=3),
-        op(r=(99, 95, 54, 60), l=(99, 83, 0, 0), ol=97, fc=1, det=9, rs=2),
-        op(r=(99, 28, 77, 60), l=(99, 67, 8, 0), ol=75, fc=1, det=5, rs=2),
+        op(r=(99, 52, 95, 60), l=(99, 87, 0, 0), ol=92, rs=2, rd=12, rc=0, kvs=3),
+        op(r=(99, 93, 32, 60), l=(99, 90, 34, 0), ol=99, fc=3, rs=4, kvs=2),
+        op(r=(99, 99, 32, 60), l=(99, 91, 0, 0), ol=99, rs=2, rd=15, rc=0, kvs=3),
+        op(r=(99, 40, 26, 60), l=(99, 99, 86, 0), ol=84, fc=1, rs=3, kvs=3),
+        op(r=(99, 95, 54, 60), l=(99, 83, 0, 0), ol=97, fc=1, det=9, rs=2, kvs=3),
+        op(r=(99, 28, 77, 60), l=(99, 67, 8, 0), ol=75, fc=1, det=5, rs=2, kvs=3),
     ], fb=5)),
     ("Koto Warm", "名残", voice("Koto Warm", 5, [  # was KOTO WARM           # A, rounder: less twang and body index, more of stack C
-        op(r=(99, 45, 71, 60), l=(99, 72, 0, 0), ol=84, rs=2, rd=12, rc=0),
-        op(r=(99, 45, 95, 60), l=(99, 90, 0, 0), ol=72, fc=2, rs=4),
-        op(r=(99, 58, 34, 60), l=(99, 95, 0, 0), ol=99, rs=2, rd=15, rc=0),
-        op(r=(99, 60, 32, 60), l=(99, 91, 90, 0), ol=85, fc=1, rs=3),
-        op(r=(99, 69, 18, 60), l=(99, 87, 0, 0), ol=90, fc=1, det=9, rs=2),
-        op(r=(99, 26, 10, 60), l=(99, 99, 97, 0), ol=70, fc=1, det=5, rs=2),
+        op(r=(99, 45, 71, 60), l=(99, 72, 0, 0), ol=84, rs=2, rd=12, rc=0, kvs=3),
+        op(r=(99, 45, 95, 60), l=(99, 90, 0, 0), ol=72, fc=2, rs=4, kvs=3),
+        op(r=(99, 58, 34, 60), l=(99, 95, 0, 0), ol=99, rs=2, rd=15, rc=0, kvs=3),
+        op(r=(99, 60, 32, 60), l=(99, 91, 90, 0), ol=85, fc=1, rs=3, kvs=2),
+        op(r=(99, 69, 18, 60), l=(99, 87, 0, 0), ol=90, fc=1, det=9, rs=2, kvs=3),
+        op(r=(99, 26, 10, 60), l=(99, 99, 97, 0), ol=70, fc=1, det=5, rs=2, kvs=2),
     ], fb=2)),
     ("Harp", "箜篌", voice("Harp", 5, [  # was HARP SOFT           # a harp-like pluck: softer attack, long even decay
-        op(r=(95, 70, 50, 65), l=(99, 70, 0, 0), ol=92, rs=2, rd=10, rc=0),
-        op(r=(99, 85, 50, 80), l=(99, 0, 0, 0), ol=66, fc=3, rs=3),
-        op(r=(96, 40, 30, 55), l=(99, 85, 0, 0), ol=99, rs=2, rd=12, rc=0),
-        op(r=(99, 55, 45, 60), l=(99, 55, 0, 0), ol=60, fc=1, rs=2),
-        op(r=(96, 38, 28, 55), l=(99, 70, 0, 0), ol=74, fc=1, det=10, rs=2),
-        op(r=(99, 60, 40, 60), l=(99, 40, 0, 0), ol=30, fc=1, det=4, rs=2),
+        op(r=(95, 70, 50, 65), l=(99, 70, 0, 0), ol=92, rs=2, rd=10, rc=0, kvs=3),
+        op(r=(99, 85, 50, 80), l=(99, 0, 0, 0), ol=66, fc=3, rs=3, kvs=2),
+        op(r=(96, 40, 30, 55), l=(99, 85, 0, 0), ol=99, rs=2, rd=12, rc=0, kvs=3),
+        op(r=(99, 55, 45, 60), l=(99, 55, 0, 0), ol=60, fc=1, rs=2, kvs=1),
+        op(r=(96, 38, 28, 55), l=(99, 70, 0, 0), ol=74, fc=1, det=10, rs=2, kvs=3),
+        op(r=(99, 60, 40, 60), l=(99, 40, 0, 0), ol=30, fc=1, det=4, rs=2, kvs=1),
     ], fb=1)),
 ]
 

@@ -10,7 +10,9 @@
 #define FM_VERSION "DEV"
 #endif
 #define PROJ_MAGIC 0x314D7546u           /* "FuM1" */
-#define PROJ_FORMAT 2u                   /* 2: the looper's parameters (1.0.4); an older project gives the defaults */
+#define PROJ_FORMAT 3u                   /* 3: Kokyu before Taiko and the trill's defaults (1.0.6); a format-2 project
+                                          * (1.0.4, 1.0.5) is migrated, anything else gives the defaults */
+#define PROJ_NPAR_V2 44u                 /* parameters in a format-2 project */
 
 typedef struct {
     uint32_t magic, format;

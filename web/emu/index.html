@@ -83,12 +83,25 @@ kbd { font: 600 .85em ui-monospace, Menlo, monospace; background: var(--card); b
     <h2>Playing</h2>
     <ul>
       <li><b>White keys</b> mi fa la ti do, three times, and a top mi: the ST-50's lower row. The tonics (keys 1, 6, 11, 16) are lit.</li>
-      <li><b>Black keys</b> the upper row (fa# sol ti-flat do# re), or ornaments when <b>SEQ</b> is on (vibrato, trill, damp, strong pluck).</li>
+      <li><b>Black keys</b> the upper row (fa# sol ti-flat do# re), or ornaments when <b>SEQ</b> is on (below).</li>
       <li><b>SELECT</b> 本数 (the key), <b>PRESETS</b> the instrument, <b>ALGORITHM</b> the scale (IN, YO, MIN'YO).</li>
       <li><b>KNOB 1–4</b> the four values on the screen: HOME 余韻, trill rate, vibrato depth, reverb; <b>FX</b> the sound page; <b>EDIT</b> the bend page.</li>
-      <li><b>LFO</b> vibrato, <b>ARP</b> trill, <b>GLO</b> mono / poly, <b>SEL</b> tap: 平均律 / 純正律, hold: the tuning page.</li>
+      <li><b>LFO</b> vibrato, <b>ARP</b> trill (in pairs, ka-ta, the first stroke the hardest), <b>GLO</b> mono / poly, held: the Trill pages (feel, pair gap, ta level, oroshi; again: first stroke, jitter), <b>SEL</b> tap: 平均律 / 純正律, hold: the tuning page.</li>
+      <li><b>REC</b> the looper: arm, the first key starts it; again: close, it plays; again: overdub. <b>PLAY</b> stop / start; held: undo. REC held: clear. <b>ENV</b> the Loop page.</li>
       <li><b>OCT−</b> / <b>OCT+</b> with a note held: bend down / up (sprung); with none: octave.</li>
     </ul>
+  </div>
+  <div>
+    <h2>Ornaments (SEQ on)</h2>
+    <ul>
+      <li><b>Black 1, 6</b> vibrato while held. <b>Black 2, 7</b> trill while held; with oroshi set (GLO held) it starts slow and speeds up. <b>Black 3, 8</b> damp. <b>Black 4, 9</b> strong pluck.</li>
+      <li>Ornaments recorded in a loop act on the loop's notes; yours act on what your hands play.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>The instruments</h2>
+    <p>Koto 琴, Koto II 箏, Sho 笙, Shakuhachi 尺八, Dragon Flt 龍笛, Bamboo Flt 篠笛, Kokyu 胡弓 (bowed), Taiko 太鼓, Hyoshigi 拍子木, Mokugyo 木魚, Koto Pluck 爪音, Koto Ring 響, Koto Warm 名残, Harp 箜篌.
+      Eight are community DX7 patches, six are FuMi's own; the order follows the ST-50's voice slider. Where each comes from, and what FuMi-1 takes from the ST-50 (the rows of keys, 本数, the measured 純正律, 余韻, トリラー, 自動伴奏), is on the <a href="../">About</a> page.</p>
   </div>
   <div>
     <h2>Mouse and touch</h2>
@@ -212,8 +225,8 @@ function hit(c, cls) {
 }
 // what each control does, on hover (the Buttons list below says the same)
 const TIP = { FX: "Sound page: low cut, high cut, character, reverb size", SEL: "Tap: equal / Suiko tuning. Hold: the tuning page", ENV: "Loop page: BPM, beats, click",
-  LFO: "Vibrato on / off", EDIT: "Bend page", GLO: "Mono / poly", HOME: "Home page", SAVE: "Save",
-  ARP: "Trill on / off", SEQ: "Black keys: upper row / ornaments", PLAY: "Looper: stop / start from the top. Hold: undo the last layer", REC: "Looper: arm (the first key starts it) / close / overdub on, off; each layer keeps its instrument. Hold: clear",
+  LFO: "Vibrato on / off", EDIT: "Bend page", GLO: "Mono / poly. Hold: the Trill pages (feel, pair gap, ta level, oroshi; again: first stroke, jitter)", HOME: "Home page", SAVE: "Save",
+  ARP: "Trill on / off: pairs, ka-ta, the first stroke the hardest", SEQ: "Black keys: upper row / ornaments", PLAY: "Looper: stop / start from the top. Hold: undo the last layer", REC: "Looper: arm (the first key starts it) / close / overdub on, off; each layer keeps its instrument. Hold: clear",
   "OCT-": "A note held: bend down. None: octave down", "OCT+": "A note held: bend up. None: octave up", SELECT: "Hon (the key)", PRESETS: "Voice", ALGORITHM: "Scale",
   MASTER: "Volume" };
 for (const [n, c] of [...Object.entries(buttons), ...Object.entries(knobs)]) if (TIP[n]) c.g.setAttribute("aria-description", TIP[n]);

@@ -29,7 +29,7 @@ static const fm_param_t PARAMS[P_NPARAMS] = {
     {"Fine", -50, 50, 0}, {"A", 430, 445, 440}, {"Octave", -1, 1, 0},
     {"Voice", 0, FM_NPATCH - 1, 0}, {"Yoin", 0, 100, 80}, {"Level", 0, 100, 80},
     {"Vibrato", 0, 1, 0}, {"Vib rate", 0, 100, 45}, {"Vib depth", 0, 100, 80},
-    {"Trill", 0, 1, 0}, {"Trill rate", 0, 100, 50}, {"Trill var", 0, 100, 30},
+    {"Trill", 0, 1, 0}, {"Trill rate", 0, 100, 50}, {"Trill feel", 0, 100, 100},
     {"Mono", 0, 1, 0}, {"Black keys", 0, 1, 0}, {"Bend up", 0, 2, BEND_T_SEMI}, {"Bend down", 0, 100, 40},
     {"Bend time", 20, 300, 90}, {"Slide", 0, 1, 0}, {"Slide time", 10, 500, 80},
     {"Low cut", 0, 100, 10}, {"High cut", 0, 100, 100}, {"Character", 0, 100, 0}, {"Reverb", 0, 100, 55},
@@ -38,6 +38,7 @@ static const fm_param_t PARAMS[P_NPARAMS] = {
     {"User 4", -50, 50, 0}, {"User la", -50, 50, 0}, {"User tib", -50, 50, 0}, {"User ti", -50, 50, 0},
     {"User do", -50, 50, 0}, {"User do#", -50, 50, 0}, {"User re", -50, 50, 0}, {"User 11", -50, 50, 0},
     {"Loop BPM", 30, 120, 60}, {"Loop beats", 8, 64, 32}, {"Click", 0, 1, 0},
+    {"Pair gap", 30, 50, 42}, {"Ta level", 30, 100, 64}, {"First", 100, 127, 127}, {"Jitter", 0, 20, 5}, {"Oroshi", 0, 3, 0},
 };
 const fm_param_t *fm_param_info(int p) { return (p >= 0 && p < P_NPARAMS) ? &PARAMS[p] : &PARAMS[0]; }
 
@@ -72,6 +73,7 @@ void fm_param_text(int p, int v, char *b)
     static const char *const ONOFF[2] = {"Off", "On"};
     static const char *const BENDT[3] = {"Semi", "Whole", "Scale"};
     static const char *const BLACKM[2] = {"Upper", "Ornam"};
+    static const char *const OROSHI[4] = {"None", "Short", "Medium", "Long"};
     const fm_param_t *pi = fm_param_info(p);
     v = v < pi->lo ? pi->lo : v > pi->hi ? pi->hi : v;
     switch (p) {
@@ -84,6 +86,7 @@ void fm_param_text(int p, int v, char *b)
         return;
     case P_BEND_UP: copy_s(BENDT[v], b, 11); return;
     case P_BLACK: copy_s(BLACKM[v], b, 11); return;
+    case P_TRILL_OROSHI: copy_s(OROSHI[v], b, 11); return;
     default: break;
     }
     if ((p == P_FINE || p == P_OCTAVE || (p >= P_USER0 && p <= P_USER11)) && v > 0)
@@ -183,6 +186,7 @@ typedef struct {
     uint8_t sliding;                              /* the glide runs at the slide time until it arrives */
     float yo_g, yo_m;                             /* 余韻: the release gain and its multiplier per sample */
     float g, dc, lvl;                             /* last block's gain (ramps), DC blocker, level for the lights */
+    float trim;                                   /* the stroke's gain trim (the accent), into the ramped gain */
     uint8_t down, live, vel;
     uint8_t slot;                                 /* the patch it plays (ps) */
     uint32_t order;
@@ -196,11 +200,19 @@ static int lp_bend_voice = -1;
 static int lp_key_of(int id) { return id >= LP_ID0 && id < LP_ID0 + FM_NKEY ? id - LP_ID0 : -1; }
 
 static int held[64], nheld;                       /* keys down, in press order (the mono / slide stack) */
-static uint8_t orn[ORN_N];
+static int lp_held[FM_NKEY], lp_nheld;            /* the loop's keys down, in press order (its trill's note) */
+static uint8_t orn[2][ORN_N];                     /* the ornaments held: [0] the hands, [1] the loop's */
 static uint32_t ms_count;                         /* the engine's clock, ms (bend.c) */
 static float ms_acc;
-static float vib_ph, vib_inc, vib_depth, vib_cur;
-static float trill_left, trill_period, trill_var;
+static float vib_ph, vib_inc, vib_depth, vib_cur[2];
+/* the trill, one per group: strokes in pairs, ka-ta; the next stroke's kind and when; oroshi's gap multiplier */
+typedef struct {
+    float left;                                   /* samples to the next stroke */
+    float mult, start;                            /* oroshi: the gap multiplier now, and at the start (1 = none) */
+    uint8_t running, ta;                          /* a stroke clock runs; the next stroke is a ta */
+} trill_t;
+static trill_t tr[2];
+static float trill_period;
 static uint32_t rnd = 0x1234567u;
 static smooth_t level_sm;
 #define OUT_TRIM 0.0891f                           /* -21 dB at the output: half way between 1.0.2's -12 dB (still loud at the
@@ -316,11 +328,72 @@ static int alloc_voice(void)
     return best;
 }
 
-/* (re)start voice i on pitch `cents` (from A4) for key id; fresh = from silence */
+/* the accents (1.0.6): a stroke's velocity and gain trim. kind 0 normal, 1 strong (the first KA, the strong-pluck
+ * ornament), 2 light (the ta); q 0..1 how much of it (Trill feel, and oroshi's progress); vary: a little
+ * different every time, so no two strokes are alike */
+static void accent(int kind, float q, int vary, int *vel, float *trim)
+{
+    float v = 100.0f, d = 0.0f;
+    if (kind == 1) {
+        v += ((float)par[P_TRILL_FIRST] - 100.0f) * q;
+        d = (v - 100.0f) * (1.5f / 27.0f);        /* +1.5 dB at 127 */
+    } else if (kind == 2) {
+        v -= (100.0f - (float)par[P_TRILL_TA]) * q;
+        d = (v - 100.0f) * (4.0f / 36.0f);        /* -4 dB at 64 */
+    }
+    if (vary) {
+        v += 4.0f * q * frand();
+        d += 0.5f * q * frand();
+    }
+    *vel = v < 1.0f ? 1 : v > 127.0f ? 127 : (int)(v + 0.5f);
+    *trim = fm_exp2f(d * (1.0f / 6.0206f));
+}
+static float feel(void) { return (float)par[P_TRILL_VAR] * 0.01f; }
+static int group_of(int id) { return lp_key_of(id) >= 0; }   /* 0 the hands, 1 the loop */
+static int trill_on(int g) { return g ? orn[1][ORN_TRILL] : (par[P_TRILL_ON] || orn[0][ORN_TRILL]); }
+static int trill_top(int g)                       /* the note the trill re-plucks: the most recent key down; -1 none */
+{
+    if (g)
+        return lp_nheld > 0 ? LP_ID0 + lp_held[lp_nheld - 1] : -1;
+    return nheld > 0 ? held[nheld - 1] : -1;
+}
+static float trill_gap(int g, int ta_next);
+static void trill_restart(int g)                  /* a stroke was just played by hand: the ta follows, the hand recovering */
+{
+    tr[g].ta = 1;
+    tr[g].left = trill_gap(g, 1) * 1.12f;
+    tr[g].running = 1;
+}
+static void oroshi_start(int g)                   /* the ornament key: from about a quarter of the rate, 800 ms at most */
+{
+    float s = 0.8f * FM_SR / trill_period;
+    tr[g].start = tr[g].mult = par[P_TRILL_OROSHI] ? (s > 4.0f ? 4.0f : s < 1.0f ? 1.0f : s) : 1.0f;
+}
+
+static void pluck_vel(int i, int id, float cents, float next_up, int fresh, int slot, int vel, float trim);
+/* (re)start voice i on pitch `cents` (from A4) for key id; fresh = from silence. A press: strong while the trill
+ * is on (the first KA; the pair restarts on it) or under the strong-pluck ornament, else normal */
 static void pluck(int i, int id, float cents, float next_up, int fresh, int slot)
 {
+    int g = group_of(id), vel;
+    float trim;
+    if (orn[g][ORN_STRONG]) {
+        accent(1, 1.0f, 0, &vel, &trim);
+    } else if (trill_on(g)) {
+        accent(1, feel(), 0, &vel, &trim);
+        if (!tr[g].running && g == 0 && orn[0][ORN_TRILL])
+            oroshi_start(g);                      /* the ornament key held first, the note after: the oroshi starts here */
+        else if (!tr[g].running)
+            tr[g].mult = tr[g].start = 1.0f;
+        trill_restart(g);
+    } else {
+        accent(0, 0.0f, 0, &vel, &trim);
+    }
+    pluck_vel(i, id, cents, next_up, fresh, slot, vel, trim);
+}
+static void pluck_vel(int i, int id, float cents, float next_up, int fresh, int slot, int vel, float trim)
+{
     voice_t *v = &vc[i];
-    int vel = orn[ORN_STRONG] ? 127 : 100;
     /* the nearest MIDI note of the pitch: the FM6 core's keyboard level and rate scaling and its detune curve
      * are set from it at note-on, as on the DX7 (the pitch itself comes from the cents, per block) */
     int mn = (int)fm_floorf((cents + 6900.0f) * 0.01f + 0.5f);
@@ -340,6 +413,7 @@ static void pluck(int i, int id, float cents, float next_up, int fresh, int slot
     v->down = 1;
     v->live = 1;
     v->vel = (uint8_t)vel;
+    v->trim = trim;
     v->order = ++order_n;
     v->slot = (uint8_t)slot;
     fm6_note_init(&v->n, ps[slot].v, mn, vel, fresh);
@@ -491,13 +565,13 @@ static void quiet(void)
         fm_midi_out(0xB0, 123, 0);
 }
 
-static void ornament(int o, int on)
+static void ornament(int o, int on, int g)        /* g: 0 the hands' notes, 1 the loop's */
 {
-    orn[o] = (uint8_t)(on != 0);
-    if (o == ORN_DAMP && on) {                     /* damp: every note let go fast, whatever 余韻 says */
+    orn[g][o] = (uint8_t)(on != 0);
+    if (o == ORN_DAMP && on) {                     /* damp: the group's notes let go fast, whatever 余韻 says */
         int i;
         for (i = 0; i < FM_NVOICE; i++)
-            if (vc[i].live) {
+            if (vc[i].live && group_of(vc[i].id) == g) {
                 release(i);
                 vc[i].yo_m = fm_expf(-6.9078f / (0.03f * FM_SR));
             }
@@ -533,6 +607,17 @@ static void lp_release_notes(void)                /* the loop's sounding notes l
     for (i = 0; i < FM_NVOICE; i++)
         if (vc[i].live && vc[i].down && lp_key_of(vc[i].id) >= 0)
             release(i);
+    lp_nheld = 0;
+}
+static void lp_held_set(int key, int on)          /* the loop's keys down, most recent last (its trill's note) */
+{
+    int k, j = 0;
+    for (k = 0; k < lp_nheld; k++)
+        if (lp_held[k] != key)
+            lp_held[j++] = lp_held[k];
+    lp_nheld = j;
+    if (on && lp_nheld < FM_NKEY)
+        lp_held[lp_nheld++] = key;
 }
 
 static void lp_quiet(void)                       /* stop, undo, clear: what the loop turned on, off; its bend let go */
@@ -540,7 +625,7 @@ static void lp_quiet(void)                       /* stop, undo, clear: what the 
     uint32_t k;
     for (k = 0; k < ORN_N; k++)
         if (lp_orn_on >> k & 1u)
-            ornament((int)k, 0);
+            ornament((int)k, 0, 1);
     lp_orn_on = 0;
     lp_bend_voice = -1;
     bend_init(&lp_bend);
@@ -590,6 +675,7 @@ static void lp_play_ev(const lp_ev_t *e)
     switch (e->c & 0x7Fu) {
     case C_KEY: {
         int id = LP_ID0 + e->a, i = find_voice(id), slot = lp_slot_of(e->layer);
+        lp_held_set(e->a, e->b);
         if (e->b) {
             float nu, cents = key_cents(e->a, &nu);
             if (i >= 0) {
@@ -605,7 +691,7 @@ static void lp_play_ev(const lp_ev_t *e)
     }
     case C_ORN:
         lp_orn_on = e->b ? lp_orn_on | 1u << e->a : lp_orn_on & ~(1u << e->a);
-        ornament(e->a, e->b);
+        ornament(e->a, e->b, 1);
         break;
     case C_BEND: bend_button(&lp_bend, e->a, e->b & 1, (e->b >> 1) & 1, ms_count); break;
     default: break;
@@ -887,7 +973,6 @@ static void apply(int p, int v)
     case P_VIB_RATE: vib_inc = 0.5f * fm_exp2f((float)v * 0.04f) * (float)BLK / FM_SR; break;   /* 0.5 .. 8 Hz */
     case P_VIB_DEPTH: vib_depth = (float)v * 0.5f; break;                                       /* 0 .. 50 cents */
     case P_TRILL_RATE: trill_period = 0.4f * fm_exp2f(-(float)v * 0.02737f) * FM_SR; break;     /* 400 .. 60 ms */
-    case P_TRILL_VAR: trill_var = (float)v * 0.01f * 0.35f; break;
     case P_BEND_UP: case P_BEND_DOWN: case P_BEND_TIME: bend_targets(); break;
     case P_SLIDE_TIME: k_slide = 1.0f - fm_expf(-BLK_MS / (float)v); break;
     case P_LOWCUT: hp_a = 1.0f - fm_expf(-FM_TWO_PI * 20.0f * fm_exp2f((float)v * 0.0432f) / FM_SR); break;   /* 20 .. 400 Hz */
@@ -928,6 +1013,7 @@ void fm_init(void)
         smooth_init(&vc[i].pitch, 12.0f, 0.0f, BLK_MS);
         vc[i].sliding = 0;
         vc[i].slot = 0;
+        vc[i].trim = 1.0f;
     }
     for (i = 0; i <= LP_NPAT; i++)
         ps[i].used = 0;
@@ -936,8 +1022,13 @@ void fm_init(void)
     for (i = 0; i < FM_NKEY; i++)
         fm_key_level[i] = 0.0f;
     for (i = 0; i < ORN_N; i++)
-        orn[i] = 0;
-    nheld = 0;
+        orn[0][i] = orn[1][i] = 0;
+    nheld = lp_nheld = 0;
+    for (i = 0; i < 2; i++) {
+        tr[i].left = 0.0f;
+        tr[i].mult = tr[i].start = 1.0f;
+        tr[i].running = tr[i].ta = 0;
+    }
     bend_voice = lp_bend_voice = -1;
     bend_init(&lp_bend);
     lp_n = lp_len = lp_pos = lp_next = lp_keys_down = lp_other_down = lp_orn_on = 0;
@@ -946,8 +1037,7 @@ void fm_init(void)
     lp_click_g = lp_click_ph = lp_click_at = 0.0f;
     ms_count = 0;
     ms_acc = 0.0f;
-    vib_ph = vib_cur = 0.0f;
-    trill_left = 0.0f;
+    vib_ph = vib_cur[0] = vib_cur[1] = 0.0f;
     hp_s = lp_s1 = lp_s2 = warm_s = 0.0f;
     fm_peak = 0.0f;
     fm_nvoices = 0;
@@ -985,7 +1075,7 @@ static void drain(void)
         case C_ORN:
             if (c.a < ORN_N) {
                 lp_record(C_ORN, c.a, c.b);
-                ornament(c.a, c.b);
+                ornament(c.a, c.b, 0);
             }
             break;
         case C_BEND:
@@ -1009,9 +1099,74 @@ static void drain(void)
 }
 
 /* -------------------------------------------------------------- render --- */
+/* the trill's next gap for group g: the pair's short gap (ka -> ta) or long one (ta -> ka), from the period, oroshi's
+ * multiplier, the pairing (Pair gap, as far as Trill feel and oroshi's progress bring it in) and the jitter */
+static float trill_gap(int g, int ta_next)
+{
+    float base = trill_period * tr[g].mult, q = feel(), frac, s, l, jit;
+    if (tr[g].start > 1.0f)
+        q *= (tr[g].start - tr[g].mult) / (tr[g].start - 1.0f);   /* even at the slow start, pairs at the rate */
+    frac = 0.5f + ((float)par[P_TRILL_PAIR] * 0.01f - 0.5f) * q;
+    s = 2.0f * frac * base;
+    l = 2.0f * base - s;
+    if (s < 0.045f * FM_SR) {                     /* a flam, not a pair: hold the short gap at 45 ms */
+        s = 0.045f * FM_SR;
+        l = 2.0f * base - s > s ? 2.0f * base - s : s;
+    }
+    jit = (float)par[P_TRILL_JIT] * 0.01f * feel();
+    return ta_next ? s * (1.0f + 0.4f * jit * frand()) : l * (1.0f + jit * frand());
+}
+
+static void trill_block(int g)                    /* every block: the group's trill clock */
+{
+    int id = trill_top(g), v;
+    if (!trill_on(g) || id < 0) {
+        tr[g].running = 0;
+        return;
+    }
+    v = find_voice(id);
+    if (v < 0) {
+        tr[g].running = 0;
+        return;
+    }
+    if (!tr[g].running) {                         /* switched on over a sounding note: the strong KA now */
+        int vel;
+        float trim;
+        if (g == 0 && orn[0][ORN_TRILL])
+            oroshi_start(g);
+        else
+            tr[g].mult = tr[g].start = 1.0f;
+        accent(1, feel(), 0, &vel, &trim);
+        pluck_vel(v, id, vc[v].base, vc[v].next_up, 0, vc[v].slot, vel, trim);
+        trill_restart(g);
+        return;
+    }
+    tr[g].left -= (float)BLK;
+    if (tr[g].left > 0.0f)
+        return;
+    {
+        int vel;
+        float trim, q = feel();
+        if (tr[g].start > 1.0f)
+            q *= (tr[g].start - tr[g].mult) / (tr[g].start - 1.0f);
+        accent(tr[g].ta ? 2 : 0, q, 1, &vel, &trim);
+        pluck_vel(v, id, vc[v].base, vc[v].next_up, 0, vc[v].slot, vel, trim);
+        if (tr[g].mult > 1.0f) {                  /* oroshi: each gap shorter than the last by a constant ratio */
+            static const float T[4] = {0.0f, 1.5f, 3.0f, 5.0f};
+            float r = 1.0f - trill_period * (tr[g].start - 1.0f) / (T[par[P_TRILL_OROSHI] & 3] * FM_SR);
+            r = r < 0.3f ? 0.3f : r > 0.98f ? 0.98f : r;
+            tr[g].mult *= r;
+            if (tr[g].mult < 1.0f)
+                tr[g].mult = 1.0f;
+        }
+        tr[g].ta = !tr[g].ta;
+        tr[g].left += trill_gap(g, tr[g].ta);
+    }
+}
+
 static void controls_block(void)
 {
-    int i, vib_on = par[P_VIB_ON] || orn[ORN_VIB], trill_on = par[P_TRILL_ON] || orn[ORN_TRILL];
+    int i;
     float b, lb;
     ms_acc += BLK_MS;
     while (ms_acc >= 1.0f) {
@@ -1021,23 +1176,14 @@ static void controls_block(void)
     b = bend_value(&bend, ms_count);
     lb = bend_value(&lp_bend, ms_count);
     fm_bend_cents = b;
-    /* vibrato: a sine, its depth easing in and out over about 100 ms */
+    /* vibrato: a sine, its depth easing in and out over about 100 ms; the hands' notes and the loop's each theirs */
     vib_ph += vib_inc;
     if (vib_ph >= 1.0f)
         vib_ph -= 1.0f;
-    vib_cur += ((vib_on ? vib_depth : 0.0f) - vib_cur) * 0.03f;
-    /* trill: the most recent held key re-plucked at the rate, each repeat a little early or late */
-    if (trill_on && nheld > 0) {
-        trill_left -= (float)BLK;
-        if (trill_left <= 0.0f) {
-            int id = held[nheld - 1], v = find_voice(id);
-            if (v >= 0)
-                pluck(v, id, vc[v].base, vc[v].next_up, 0, vc[v].slot);
-            trill_left = trill_period * (1.0f + trill_var * frand());
-        }
-    } else {
-        trill_left = 0.0f;
-    }
+    vib_cur[0] += (((par[P_VIB_ON] || orn[0][ORN_VIB]) ? vib_depth : 0.0f) - vib_cur[0]) * 0.03f;
+    vib_cur[1] += ((orn[1][ORN_VIB] ? vib_depth : 0.0f) - vib_cur[1]) * 0.03f;
+    trill_block(0);
+    trill_block(1);
     {
         uint32_t in_use = 1u;                     /* the current instrument's LFO runs always; a loop slot's while a voice reads it */
         for (i = 0; i < FM_NVOICE; i++)
@@ -1060,7 +1206,7 @@ static void controls_block(void)
 static void render_voices(void)
 {
     int i, k, nv = 0;
-    float vib = vib_cur * fm_sin_turns(vib_ph);
+    float vs = fm_sin_turns(vib_ph);
     for (i = 0; i < FM_NVOICE; i++) {
         voice_t *v = &vc[i];
         const pslot_t *p = &ps[v->slot];
@@ -1073,7 +1219,7 @@ static void render_voices(void)
             v->sliding = 0;
             v->pitch.k = k_fast;
         }
-        cents += vib;
+        cents += vib_cur[group_of(v->id)] * vs;
         if (!fm6_note_compute(&v->n, p->v, bus, p->lfo_v, p->lfo_d, fm6_logfreq_cents(cents + 6900.0f), p->v[FP_ALG] & 31u,
                               p->v[FP_FB] & 7u, DT0, 0) || (!v->down && v->yo_g < 1e-4f)) {
             if (fm6_note_done(&v->n, p->v, p->v[FP_ALG] & 31u) || (!v->down && v->yo_g < 1e-4f)) {
@@ -1102,7 +1248,7 @@ static void render_voices(void)
             v->yo_g *= mb;
             (void)m;
         }
-        g1 = 0.18f * v->yo_g;                    /* a full carrier = 0.36; eight koto attacks at once reach the soft clip gently */
+        g1 = 0.18f * v->yo_g * v->trim;          /* a full carrier = 0.36; eight koto attacks at once reach the soft clip gently */
         dg = (g1 - g0) * (1.0f / (float)BLK);
 #ifdef FM_NO_SMOOTH
         g0 = g1;

@@ -7,8 +7,10 @@
  *            oscillator) -> + vibrato -> fm6_logfreq_cents. The bend buttons (bend.c) move the most recent note.
  *   Voices   FM_NVOICE notes of the current patch (a 155-byte voice, fm6_patch.c); re-plucking a key
  *            re-excites its own voice; stealing retriggers without a phase reset (no click).
- *   余韻      a release gain per voice after key-up, 20 ms .. 8 s. トリラー re-plucks the held note at a rate with
- *            a little variation. ビブラート a sine on the pitch. 単音 last-note priority.
+ *   余韻      a release gain per voice after key-up, 20 ms .. 8 s. トリラー re-plucks the held note in pairs, ka-ta,
+ *            the first stroke the hardest, the ta lighter (velocity and a gain trim), a key press restarting
+ *            the pair; Trill feel 0 is the even machine; oroshi (the ornament key) starts slow and speeds up.
+ *            ビブラート a sine on the pitch. 単音 last-note priority. The loop's notes have ornaments of their own.
  *   Output   low cut, high cut, character (tilt and warmth), the plate reverb (reverb.c), soft clip.
  *
  * Threads: fm_render() runs in the audio interrupt; everything else posts commands that the render drains at
@@ -30,11 +32,12 @@ enum {
     P_HON, P_SCALE, P_TUNING, P_DEPTH, P_FINE, P_A4, P_OCTAVE,           /* 本数, scale, 調律, depth %, 微調, A, octave */
     P_VOICE, P_YOIN, P_LEVEL,                                            /* patch slot, 余韻, output level */
     P_VIB_ON, P_VIB_RATE, P_VIB_DEPTH,                                   /* ビブラート */
-    P_TRILL_ON, P_TRILL_RATE, P_TRILL_VAR,                               /* トリラー: re-plucks at a rate, with variation */
+    P_TRILL_ON, P_TRILL_RATE, P_TRILL_VAR,                               /* トリラー: re-plucks at a rate; P_TRILL_VAR is Trill feel */
     P_MONO, P_BLACK, P_BEND_UP, P_BEND_DOWN, P_BEND_TIME, P_SLIDE, P_SLIDE_TIME,
     P_LOWCUT, P_HIGHCUT, P_CHARACTER, P_REVERB, P_REV_SIZE, P_MIDI_OUT,
     P_USER0, P_USER1, P_USER2, P_USER3, P_USER4, P_USER5, P_USER6, P_USER7, P_USER8, P_USER9, P_USER10, P_USER11,
     P_LOOP_BPM, P_LOOP_BEATS, P_LOOP_CLICK,                              /* the looper's ruler and its click */
+    P_TRILL_PAIR, P_TRILL_TA, P_TRILL_FIRST, P_TRILL_JIT, P_TRILL_OROSHI,   /* the trill's defaults (1.0.6, the GLO page) */
     P_NPARAMS
 };
 typedef struct {
@@ -46,6 +49,7 @@ void fm_param_text(int p, int v, char *buf);     /* as the screen shows it (12 b
 
 enum { BEND_T_SEMI, BEND_T_WHOLE, BEND_T_SCALE };          /* P_BEND_UP */
 enum { ORN_VIB, ORN_TRILL, ORN_DAMP, ORN_STRONG, ORN_N };   /* fm_ornament */
+enum { ORO_NONE, ORO_SHORT, ORO_MEDIUM, ORO_LONG };          /* P_TRILL_OROSHI: how long the ornament trill takes from slow to the rate */
 
 /* commands (main loop -> render) */
 void fm_init(void);
@@ -58,7 +62,8 @@ void fm_panic(void);
 /* the looper: REC arms, the first key starts the loop; REC again closes it (or the ruler does, at BPM x beats)
  * and it plays; REC while playing overdubs on a new layer; PLAY stops and starts from the top; undo takes the
  * top layer; clear empties it. Keys, ornaments and the bend buttons are recorded with their timing from the audio
- * clock; the loop stores keys, not pitches, so 本数 and 調律 retune it. One instrument; the loop lives in RAM. */
+ * clock; the loop stores keys, not pitches, so 本数 and 調律 retune it. Each layer keeps the instrument it was recorded
+ * in (1.0.5); the loop's ornaments act on the loop's notes (1.0.6). The loop lives in RAM. */
 enum { LP_IDLE, LP_ARMED, LP_REC, LP_PLAY, LP_DUB, LP_STOP, LP_NSTATE };
 void fm_loop_rec(void);                          /* the REC tap */
 void fm_loop_play(void);                         /* the PLAY tap */

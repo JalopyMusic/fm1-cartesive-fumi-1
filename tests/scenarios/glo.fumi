@@ -1,0 +1,42 @@
+# GLO: a tap toggles mono / poly; held, it opens the trill page, held again the second page, again the first.
+# The knobs edit the trill's feel and defaults; a tap on GLO from a trill page still toggles mono.
+wait 300
+tap GLO
+wait 50
+expect par16 1
+tap GLO
+wait 50
+expect par16 0
+press GLO
+wait 600
+release GLO
+wait 50
+expect view 5
+expect par16 0
+spin K1 -10
+spin K2 -5
+spin K4 2
+wait 50
+expect par15 90
+expect par44 37
+expect par48 2
+wait 1400
+shot trill.png
+press GLO
+wait 600
+release GLO
+wait 50
+expect view 6
+spin K1 -7
+spin K2 5
+wait 50
+expect par46 120
+expect par47 10
+press GLO
+wait 600
+release GLO
+wait 50
+expect view 5
+tap HOME
+wait 50
+expect view 0

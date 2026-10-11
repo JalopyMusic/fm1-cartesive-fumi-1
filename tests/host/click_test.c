@@ -9,11 +9,29 @@
 #include "tu.h"
 #include "../../firmware/src/dsp/fumi.c"
 
-void fm_midi_out(uint32_t st, uint32_t d1, uint32_t d2) { (void)st; (void)d1; (void)d2; }
-
 static float buf[6 * 44100];
 static int32_t blk[2 * 256];
 static int pos;
+/* the strokes (note-ons), by render position: a pluck restarts the envelope from nothing, as the DX7 does, so a
+ * hard attack is a steep rise by design; the first 4 ms after a stroke are the stroke's own */
+static int strokes[512], nstrokes, strokes_own;   /* strokes_own: the trill section, where a stroke's attack is its own */
+void fm_midi_out(uint32_t st, uint32_t d1, uint32_t d2)
+{
+    (void)d1;
+    (void)d2;
+    if (st == 0x90u && nstrokes < 512)
+        strokes[nstrokes++] = pos;
+}
+static int at_stroke(int i)
+{
+    int k;
+    if (!strokes_own)
+        return 0;
+    for (k = 0; k < nstrokes; k++)
+        if (i >= strokes[k] && i < strokes[k] + 256 + 180)
+            return 1;
+    return 0;
+}
 static void run(int n)
 {
     int i, k;
@@ -32,7 +50,7 @@ static int clicks(int from, int to, const char *what)
         acc += ((double)buf[i] - buf[i - 1]) * ((double)buf[i] - buf[i - 1]);
     for (i = from + w; i < to; i++) {
         double d = (double)buf[i] - buf[i - 1], old = (double)buf[i - w + 1] - buf[i - w], rms = sqrt(acc / w);
-        if (fabs(d) > 8.0 * rms && fabs(d) > 2e-3) {
+        if (fabs(d) > 8.0 * rms && fabs(d) > 2e-3 && !at_stroke(i)) {
             if (n < 3)
                 printf("       click at %d (%s): jump %.4f, rms %.5f\n", i, what, d, rms);
             n++;
@@ -124,6 +142,41 @@ int main(void)
     run(8192);
     total += clicks(start, pos, "key-up with short 余韻");
 
-    CHECK("no clicks through bend, tuning switch, 本数, level, steal and key-up", total == 0);
+    /* 1.0.6: the trill's accents (strokes of three strengths re-exciting one voice) on FuMi's own kotos and the
+     * sticks, with the bend held and vibrato on, oroshi starting slow */
+    {
+        static const char *const INS[3] = {"Koto Pluck", "Koto Ring", "Hyoshigi"};
+        int s, k;
+        fm_set(P_VIB_ON, 1);
+        fm_set(P_TRILL_VAR, 100);
+        fm_set(P_TRILL_RATE, 70);
+        fm_set(P_TRILL_JIT, 10);
+        fm_set(P_TRILL_OROSHI, ORO_SHORT);
+        fm_set(P_YOIN, 80);
+        strokes_own = 1;
+        for (k = 0; k < 3; k++) {
+            for (s = 0; s < fm_patch_count() && strcmp(fm_patch_name(s), INS[k]); s++)
+                ;
+            fm_set(P_VOICE, s);
+            run(2048);
+            pos = 0;
+            nstrokes = 0;
+            start = pos;
+            fm_key(5, 1);
+            run(256);
+            fm_ornament(ORN_TRILL, 1);
+            run(4096);
+            fm_bend(1, 1, 1);
+            run(44032);
+            fm_bend(1, 0, 1);
+            run(22016);
+            fm_ornament(ORN_TRILL, 0);
+            fm_key(5, 0);
+            run(22016);
+            total += clicks(start, pos, INS[k]);
+        }
+        fm_set(P_VIB_ON, 0);
+    }
+    CHECK("no clicks through bend, tuning switch, 本数, level, steal, key-up and the trill's accents", total == 0);
     return tu_done("click");
 }

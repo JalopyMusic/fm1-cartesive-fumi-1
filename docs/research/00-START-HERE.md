@@ -65,8 +65,8 @@ All pitch maths in cents as floats: see `tuning-reference.md` for the formula (i
 | **OCT− / OCT+ with a note held** | **Pitch bend down / up, spring return** | 音程 rocker (sprung) |
 | OCT− / OCT+ with no note held | Octave down / up | オクターブ (down only on the original) |
 | LFO | ビブラート on/off (a chorus-vibrato) | ビブラート |
-| ARP | トリラー on/off: **re-triggers the held note repeatedly** | トリラー |
-| GLO | 単音/和音 (mono/poly) | 単音/和音 |
+| ARP | トリラー on/off: **re-triggers the held note in pairs, ka-ta** (1.0.6) | トリラー |
+| GLO | 単音/和音 (mono/poly). Held: the Trill pages: feel, pair gap, ta level, oroshi; first stroke, jitter (1.0.6) | 単音/和音 |
 | SEL | 調律: 平均律 / 純正律; hold for depth, 微調 | 調律 switch, 微調 |
 | SEQ | Black-key mode: upper row / ornaments | — |
 | FX, EDIT, HOME, SAVE | Pages | — |
@@ -76,7 +76,7 @@ All pitch maths in cents as floats: see `tuning-reference.md` for the formula (i
 
 **Bend:** role decided at the moment of pressing. With a note held, OCT+ glides the most recent note up to the target (semitone, whole tone or next scale note; about 90 ms up, 120 ms back, S-shaped) and holds until release; a tap is an up-and-back flick; OCT− is a small drop. Both held together stays reserved for update mode. **Key slide** is a per-voice option (on for shakuhachi, off for koto). A control smoother still sits under everything, and a click regression test guards it (file 04).
 
-**Trill:** note repetition at the set speed, not alternation of two pitches. Each repeat varied slightly so it does not machine-gun; variation can be set to zero for the original's behaviour.
+**Trill:** note repetition at the set speed, not alternation of two pitches. From 1.0.6 it plays in pairs, *ka-ta*, the first stroke the hardest and the *ta* lighter (velocity and a gain trim), a key press restarting the pair; Trill feel 0 is the original's even machine. Oroshi 颪 (None / Short / Medium / Long, on GLO) makes the trill *ornament key* start slow and speed up by a constant ratio; the ARP trill stays plain. FuMi's own instruments respond to velocity so the accents change tone as well as level. Design: the owner's `fumi-1.0.6-ideas.md`, `-extras-ideas.md` and `-more-extras-ideas.md` in Dropbox.
 
 ### Voices
 

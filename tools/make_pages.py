@@ -72,14 +72,16 @@ ul.pages li { margin: 0 0 .4rem; }
 poetry-accompaniment instrument. The sixteen white keys are the ST-50's lower row, mi fa la ti do three times
 and a top mi; the black keys its upper row or koto ornaments; the key is set in 本数; the tuning switches
 between 平均律 and the ST-50's 純正律 as measured from recordings; the sounds are a koto, a second koto,
-sho, shakuhachi, two more flutes, a taiko and two wood blocks, each with its name in kanji on the screen;
-and REC is a looper, as the ST-50's 自動伴奏 was: play a phrase, loop it, play over it.</p>
+sho, shakuhachi, two more flutes, a bowed kokyū, a taiko, two wood blocks and four of FuMi's own, each with
+its name in kanji on the screen; the trill plays in pairs like a hand; and REC is a looper, as the ST-50's
+自動伴奏 was: play a phrase, loop it, play over it.</p>
 <div class="shots">
   <img src="img/screen-home.png" width="240" height="240" alt="FuMi-1's screen: 1本, A3, SUIKO tuning, the in scale, and the koto 琴 large">
   <img src="img/screen-play.png" width="240" height="240" alt="FuMi-1's screen with two keys sounding">
   <img src="img/screen-shakuhachi.png" width="240" height="240" alt="FuMi-1's screen on the tuning page with Shakuhachi 尺八">
   <img src="img/screen-tuning.png" width="240" height="240" alt="FuMi-1's tuning page: SUIKO, depth, fine, A = 440">
   <img src="img/screen-loop.png" width="240" height="240" alt="FuMi-1's screen with a loop overdubbing: the DUB tag and the loop bar under the keys">
+  <img src="img/screen-trill.png" width="240" height="240" alt="FuMi-1's Trill page: feel, pair gap, ta level, oroshi">
 </div>
 <div class="status"><strong>Version __VERSION__.</strong> It installs and uninstalls the way Felucca, X0X and
 FoMni do, and the installer can put M-VAVE's own firmware back. Installing is at your own risk; read the
@@ -96,21 +98,93 @@ quieter than the stock firmware at the same MASTER setting: turn MASTER up.</div
 <h2>Playing</h2>
 <table>
 <tr><td>White keys</td><td>mi fa la ti do × 3 and a top mi. The tonics (keys 1, 6, 11, 16) are lit. 三 is key 6.</td></tr>
-<tr><td>Black keys</td><td>The upper row fa♯ sol ti♭ do♯ re, five per octave. SEQ switches them to ornaments: vibrato, trill, damp, strong pluck.</td></tr>
+<tr><td>Black keys</td><td>The upper row fa♯ sol ti♭ do♯ re, five per octave. SEQ switches them to ornaments (below).</td></tr>
 <tr><td>SELECT</td><td>本数: 水4, 水3, 水2, 水1, 1 … 12. At 1本, 三 = A3.</td></tr>
-<tr><td>PRESETS</td><td>The instrument: Koto 琴, Koto II 箏, Sho 笙, Shakuhachi 尺八, Dragon Flt 龍笛, Bamboo Flt 篠笛, Taiko 太鼓, Hyoshigi 拍子木, Mokugyo 木魚, Koto Pluck 爪音, Koto Ring 響, Koto Warm 名残, Harp 箜篌.</td></tr>
+<tr><td>PRESETS</td><td>The instrument, fourteen of them (below).</td></tr>
 <tr><td>ALGORITHM</td><td>The scale: IN 陰, YŌ 陽, MIN'YŌ 民謡.</td></tr>
 <tr><td>OCT− · OCT+</td><td>With a note held: a sprung bend down or up (semitone, whole tone or the next scale note). With nothing held: the octave. Both held 5 s: update mode.</td></tr>
-<tr><td>LFO · ARP · GLO</td><td>Vibrato, trill, mono (slide between notes).</td></tr>
+<tr><td>LFO · ARP · GLO</td><td>Vibrato on / off; trill on / off (in pairs, ka-ta, the first stroke the hardest); mono / poly. GLO held: the Trill pages.</td></tr>
 <tr><td>SEL</td><td>Tap: 平均律 ↔ 純正律. Hold: the tuning page (EQUAL, SUIKO as measured, KOTO pure fifths, USER; depth; 微調; A = 430–445).</td></tr>
-<tr><td>KNOB 1–4</td><td>The page's four values. HOME: 余韻, trill rate, vibrato depth, reverb. FX: low cut, high cut, character, reverb size. EDIT: bend target, bend down, bend time, slide time.</td></tr>
+<tr><td>KNOB 1–4</td><td>The page's four values. HOME: 余韻, trill rate, vibrato depth, reverb. FX: low cut, high cut, character, reverb size. EDIT: bend target, bend down, bend time, slide time. Trill (GLO held): feel, pair gap, ta level, oroshi; held again: first stroke, jitter.</td></tr>
 <tr><td>REC</td><td>The looper. Tap: arm, and the first key starts the loop. Tap again: the loop closes where you are and plays (or it closes itself at 32 beats of 60 BPM). While it plays: overdub on / off. Each layer keeps the instrument it was recorded in, so turn PRESETS and play over it. Hold a second: clear.</td></tr>
 <tr><td>PLAY</td><td>Stop / start the loop from the top. Hold a second: undo the last layer.</td></tr>
 <tr><td>ENV</td><td>The Loop page: BPM, length in beats, click.</td></tr>
 <tr><td>SAVE</td><td>Saves. FuMi-1 also saves by itself a few seconds after a change, once it's quiet.</td></tr>
 </table>
-<p>MIDI comes in over USB (chromatic) and goes out over USB. The patches are Yamaha DX7-format voices; the
-built-ins are community patches and FuMi's own, with no factory ROM voice among them.</p>
+<p>MIDI comes in over USB (chromatic) and goes out over USB with the strokes' velocities. The patches are
+Yamaha DX7-format voices; the built-ins are community patches and FuMi's own, with no factory ROM voice
+among them.</p>
+
+<h2>The instruments</h2>
+<p>PRESETS steps through them; the screen shows each name with its Japanese name beneath, Suiko-style. The
+order follows the ST-50's voice slider: kotos, winds, the bowed voice, percussion. Eight are picks from
+community DX7 banks on patches.fm, six are FuMi's own. FuMi's own six respond to how hard they are struck.</p>
+<table>
+<tr><td>1 Koto 琴</td><td>N-KOTO-A5, a community patch. The boot instrument.</td></tr>
+<tr><td>2 Koto II 箏</td><td>KOTO-KOTO, a community patch.</td></tr>
+<tr><td>3 Sho 笙</td><td>Air---*--3, a community patch: the mouth organ.</td></tr>
+<tr><td>4 Shakuhachi 尺八</td><td>PAN FL T A, a community patch.</td></tr>
+<tr><td>5 Dragon Flt 龍笛</td><td>ALTO FLUTE, a community patch: the ryūteki of gagaku.</td></tr>
+<tr><td>6 Bamboo Flt 篠笛</td><td>Bamboo Flt, a community patch: the shinobue.</td></tr>
+<tr><td>7 Kokyu 胡弓</td><td>After Viola.Ens by Tim Garrett, the attack slowed and a bow tremolo added: the bowed string, one of the ST-50's own voices.</td></tr>
+<tr><td>8 Taiko 太鼓</td><td>Timpani.2 by Tim Garrett.</td></tr>
+<tr><td>9 Hyoshigi 拍子木</td><td>FuMi's own: two hardwood sticks struck together, a dry crack the same on every key. The trill rolls them.</td></tr>
+<tr><td>10 Mokugyo 木魚</td><td>FuMi's own: the wooden fish, a round pitched tok.</td></tr>
+<tr><td>11 Koto Pluck 爪音</td><td>FuMi's own, found by a search against measurements of the ST-50's koto.</td></tr>
+<tr><td>12 Koto Ring 響</td><td>FuMi's own, brighter.</td></tr>
+<tr><td>13 Koto Warm 名残</td><td>FuMi's own, rounder.</td></tr>
+<tr><td>14 Harp 箜篌</td><td>FuMi's own.</td></tr>
+</table>
+
+<h2>What comes from the ST-50</h2>
+<p>The Suiko ST-50 is a 水光 trainer for shigin, the chanted recitation of Chinese and Japanese poems: a
+keyboard that gives the singer the scale, the key and a koto or flute under the voice. FuMi-1 keeps its
+logic on the FM-1's panel.</p>
+<table>
+<tr><td>Lower row</td><td>The sixteen white keys: mi fa la ti do three times and a top mi, the tonics lit. 三 is key 6.</td></tr>
+<tr><td>Upper row</td><td>The black keys: fa♯ sol ti♭ do♯ re, five per octave.</td></tr>
+<tr><td>本数</td><td>SELECT: the key, 水4 to 12本, sixteen semitones. At 1本, 三 = A3.</td></tr>
+<tr><td>調律</td><td>SEL: 平均律 or 純正律. The ST-50's 純正律 was measured from recordings: fa 20.8 cents and do 16.0 cents below equal temperament, within a cent across two recordings in two keys. A depth control scales it; KOTO is pure fifths; USER is your own.</td></tr>
+<tr><td>余韻</td><td>KNOB 1: the ring after the key is released, 20 ms to 8 s.</td></tr>
+<tr><td>トリラー</td><td>ARP, and the trill ornament key: the held note re-plucked, now in pairs.</td></tr>
+<tr><td>ビブラート</td><td>LFO, and the vibrato ornament key; KNOB 3 its depth.</td></tr>
+<tr><td>単音 / 和音</td><td>GLO: mono (with slide) or poly.</td></tr>
+<tr><td>音程 rocker</td><td>OCT− / OCT+ with a note held: a sprung bend down or up.</td></tr>
+<tr><td>強弱</td><td>MASTER: play fade-ins on it by hand, as on the ST-50's rocker.</td></tr>
+<tr><td>自動伴奏</td><td>REC and PLAY: 記憶, 再生, 停止 as a looper.</td></tr>
+<tr><td>Voices</td><td>Of the ST-50's sixteen, FuMi has 琴, 箏, 笙, 尺八, 篠笛, 胡弓 and percussion; the rest are FuMi's own choices.</td></tr>
+</table>
+
+<h2>The black keys as ornaments</h2>
+<p>Press SEQ and the black keys stop being the upper row and become techniques on the note that sounds.
+They are momentary: held, they act; released, they stop. The same four come twice, one set per hand position.</p>
+<table>
+<tr><td>Black 1 and 6</td><td>Vibrato while held.</td></tr>
+<tr><td>Black 2 and 7</td><td>Trill while held: the held note re-plucked in pairs, the first stroke the hardest. With oroshi set on the Trill page, it starts slow and speeds up (颪, the drum roll of the theatre); press the key again to start from slow again.</td></tr>
+<tr><td>Black 3 and 8</td><td>Damp: every note let go at once, whatever 余韻 says.</td></tr>
+<tr><td>Black 4 and 9</td><td>Strong pluck: the next notes struck hard.</td></tr>
+<tr><td>Black 5, 10, 11</td><td>Nothing yet.</td></tr>
+</table>
+<p>Ornaments recorded in a loop act on the loop's notes; your own ornament keys act on what your hands play.</p>
+
+<h2>The trill</h2>
+<p>Strokes come as <em>ka-ta, ka-ta</em>: a short gap inside the pair (42 % of it), a longer one between pairs,
+a little jitter mostly on the long gap. The first stroke is the hardest, each <em>ta</em> light, each later
+<em>ka</em> normal, and no two strokes alike. Every key you press restarts the pair, so the strokes line up with
+your hand. Trill rate on HOME sets the speed; Trill feel (hold GLO) goes from 0, the ST-50's even machine,
+to 100, the full pairs and accents. The Trill pages keep the defaults behind the feel knob: pair gap, ta
+level, first stroke, jitter, and oroshi for the ornament key: None, Short, Medium or Long, the time the trill
+takes from slow to full speed. The ARP button's trill stays plain whatever the setting.</p>
+
+<h2>The looper</h2>
+<p>REC arms; the first key you play starts the loop; REC again closes it where you are and it plays (or it
+closes itself at 32 beats of 60 BPM, set on the ENV page). REC while it plays overdubs a layer. PLAY stops
+and starts from the top; held a second it undoes the last layer; REC held a second clears. Keys, the ornament
+keys and the bend buttons are recorded with their timing; knobs and MASTER are not. The loop stores keys, not
+pitches, so change 本数 or the tuning and it follows. Each layer keeps the instrument it was recorded in, so
+turn PRESETS and play over it. The loop lives in memory until the FM-1 is switched off.</p>
+<p>The whole story, the research and the measurements are in the <a href="__REPO__#readme">README</a> and in
+<code>docs/research/</code> on GitHub.</p>
 <p class="small">To go back to the official firmware, use the installer's "Back to the stock firmware", or
 M-VAVE's updater, M-UPGRADE, from <a href="https://www.m-vave.com/download">m-vave.com/download</a>. Suiko
 and ST-50 are names of Suikohsha; M-VAVE and FM-1 are trademarks of their owners. FuMi-1 is affiliated with

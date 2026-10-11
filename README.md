@@ -4,9 +4,9 @@ FuMi-1 (文) turns the M-VAVE FM-1 into a shigin conductor inspired by the Suiko
 poetry-accompaniment instrument. The sixteen white keys are the ST-50's lower row: mi fa la ti do, three
 times, and a top mi. The black keys are its upper row (fa♯ sol ti♭ do♯ re) or, at the flick of a button,
 koto ornaments. The key is set in 本数 (水4 to 12本), the tuning switches between 平均律 and the ST-50's
-純正律 as measured from recordings, and the sounds are a koto and twelve more on a 6-operator FM engine,
-with 余韻 (ring time), vibrato, trill, a sprung pitch bend on the octave buttons, a looper on REC, and a
-subtle plate reverb.
+純正律 as measured from recordings, and the sounds are a koto and thirteen more on a 6-operator FM engine,
+with 余韻 (ring time), vibrato, a trill that plays in pairs like a hand, a sprung pitch bend on the octave
+buttons, a looper on REC, and a subtle plate reverb.
 
 It is built on [FoMni](https://github.com/charlesvestal/fm1-omnichord)'s platform (Felucca's HAL, update
 loader, USB, storage, screen driver, installer and browser emulator), which is kept byte-for-byte: all of
@@ -18,10 +18,11 @@ FuMi lives in `firmware/src/app/` and `firmware/src/dsp/`.
 
 <img src="docs/img/screen-home.png" width="240" height="240" alt="FuMi-1's HOME screen: 1本, A3, SUIKO tuning, the in scale, and the koto 琴 large"> <img src="docs/img/screen-loop.png" width="240" height="240" alt="FuMi-1 overdubbing a loop: the DUB tag and the loop bar under the keys">
 
-**Status (10 Oct 2026):** version 1.0.5 (identity `FM-1_7010005`). It has run on one FM-1, the author's,
-since 0.1. What works: the pitch core and the measured tuning, thirteen instruments with their names in
-kanji, the bends, ornaments, vibrato, trill, 余韻, mono with slide, the voicing stages, reverb, MIDI in and
-out, the looper, the host simulator, the browser emulator, the audition bench and the web installer. What
+**Status (11 Oct 2026):** version 1.0.6 (identity `FM-1_7010006`). It has run on one FM-1, the author's,
+since 0.1. What works: the pitch core and the measured tuning, fourteen instruments with their names in
+kanji, the bends, ornaments, vibrato, the trill in pairs with oroshi, 余韻, mono with slide, the voicing
+stages, reverb, MIDI in and out, the looper, the host simulator, the browser emulator, the audition bench
+and the web installer. What
 is next: a loop that survives power-off and key slide for the shakuhachi. Releases are listed in `docs/CHANGELOG.md`; the research and the plan are in `docs/research/`
 (`00-START-HERE.md` is the current truth).
 
@@ -72,10 +73,10 @@ button; a failed install can leave it unable to start.
 | SELECT | 本数: 水4, 水3, 水2, 水1, 1 … 12. At 1本, 三 = A3 and key 1 = A2 |
 | PRESETS | 音色, the instrument |
 | ALGORITHM | The scale: IN 陰 (mi fa la ti do), YŌ 陽 (fa and do raised), MIN'YŌ 民謡 (raised a whole tone) |
-| KNOB 1–4 | The four values of the page. HOME: 余韻, trill rate, vibrato depth, reverb. FX: low cut, high cut, character, reverb size. EDIT: bend target, bend down, bend time, slide time. ENV (Loop): BPM, beats, click. Tuning page: tuning, depth, 微調, A |
+| KNOB 1–4 | The four values of the page. HOME: 余韻, trill rate, vibrato depth, reverb. FX: low cut, high cut, character, reverb size. EDIT: bend target, bend down, bend time, slide time. ENV (Loop): BPM, beats, click. Tuning page: tuning, depth, 微調, A. Trill pages: feel, pair gap, ta level, oroshi; first stroke, jitter |
 | LFO | ビブラート on / off |
-| ARP | トリラー on / off: the held note re-plucked at the rate, each repeat a little different. On the wood blocks and the taiko, a roll |
-| GLO | 単音 / 和音 (mono / poly) |
+| ARP | トリラー on / off: the held note re-plucked in pairs, ka-ta, the first stroke the hardest and the ta lighter; a new key restarts the pair. On the wood blocks and the taiko, a roll |
+| GLO | 単音 / 和音 (mono / poly). Hold: the Trill pages (feel, pair gap, ta level, oroshi; hold again: first stroke, jitter) |
 | SEL | Tap: 平均律 ↔ 純正律. Hold: the tuning page (EQUAL, SUIKO, KOTO pure fifths, USER; depth; 微調 ±50 cents; A = 430–445) |
 | OCT− / OCT+ | With a note held: the 音程 rocker, a sprung bend down (−40 cents) / up (a semitone, a whole tone or the next scale note). With no note held: octave down / up |
 | OCT− + OCT+ held 5 s | Update mode (the platform's; never reassigned) |
@@ -105,6 +106,8 @@ played, nothing is quantised.
   the LFO, ARP and GLO buttons, and MASTER, so your left hand shapes the level of everything live.
 - The loop stores keys, not pitches: change 本数 or the tuning while it plays and the loop follows. Notes
   ringing across the join keep ringing. A note still held when a layer ends is let go in the recording.
+- The loop's ornaments act on the loop's notes: a trill recorded in a layer rolls that layer's note, and your
+  own ornament keys act on what your hands play.
 - Each layer keeps the instrument it was recorded in. Loop a koto phrase, turn PRESETS to the shakuhachi
   and play over it: the koto goes on being a koto under your shakuhachi, and an overdub now is a
   shakuhachi layer. A layer's instrument is the one playing at its first note; a loop holds up to eight
@@ -112,6 +115,35 @@ played, nothing is quantised.
   memory until the FM-1 is switched off; it does not go out over MIDI.
   REC lights red while recording and blinks while armed; PLAY lights while the loop plays; a thin bar under
   the keys shows where the loop is. Nothing autosaves while a loop runs.
+
+## The trill
+
+The ST-50's トリラー repeated the held note like a machine. FuMi's trill (ARP, or the second black key in
+ornament mode while it is held) plays the way a hand does: in pairs.
+
+- **Pairs.** Strokes come as *ka-ta, ka-ta*: a short gap inside the pair, a longer one between pairs. The
+  short gap is 42 % of the pair by default. Every key you press restarts the pair, so the strokes line up with
+  your hand; a little jitter sits mostly on the long gap, so the pair stays tight and the space between
+  breathes. At fast rates the short gap is held above 45 ms so the pair does not smear.
+- **Accents.** The first stroke of a trill, the *KA*, is the hardest (velocity 127, plus 1.5 dB). Each *ta* is
+  light (velocity 64, minus 4 dB), each later *ka* normal. Every stroke differs a little from the last.
+  The strong-pluck ornament key plays the same hard stroke, which now makes a difference.
+- **Trill rate** on HOME sets the average stroke rate, as before. **Trill feel** (hold GLO) is one knob from 0,
+  the even machine of the ST-50 with identical strokes, to 100, the full pairs and accents.
+- **The Trill pages** (hold GLO; hold again for the second page) keep the defaults behind the feel knob: pair
+  gap, ta level, first stroke, jitter, and oroshi. They are saved with the setup.
+- **Oroshi** (颪, the drum roll that starts slow and speeds up) is a setting for the trill *ornament key*: None,
+  Short, Medium or Long, the length of the run from slow to the trill rate (about 1.5, 3 and 5 seconds).
+  With it set, holding the ornament key starts the trill at about a quarter of the rate and each gap is
+  shorter than the last by a constant ratio until it arrives; the first stroke is still the hard *KA*, and the
+  pairs and the lighter *ta* come in as it speeds up. Pressing the ornament key again starts it from slow; a
+  new white key under a held ornament key carries on at the speed reached. The ARP button's trill stays plain
+  whatever the setting, so an ordinary trill is always one tap away. On the hyōshigi it is the clapper roll
+  of the theatre.
+- **Velocity.** FuMi's own instruments now respond to how hard they are struck (a light *ta* on Koto Pluck is
+  5 dB quieter and a third duller, a hard *KA* a third brighter), so the accents change the tone and not only
+  the level. The community patches are as their authors wrote them; Koto II responds, Koto only a little.
+- A trill recorded in a loop is replayed with the settings in force when it plays, oroshi included.
 
 ## Why the tuning matters
 
@@ -148,8 +180,9 @@ web/bench/serve.py      # then open http://localhost:8765/build/bench/
 ## The instruments
 
 PRESETS steps through the built-in instruments; the screen shows each one's name with its Japanese name
-beneath, Suiko-style. Seven are the owner's picks from community DX7 banks on patches.fm (each entry in
-`tools/fumi_patches.py` names its bank and author); six are FuMi's own.
+beneath, Suiko-style. Eight are the owner's picks from community DX7 banks on patches.fm (each entry in
+`tools/fumi_patches.py` names its bank and author; one of them, the kokyū, is altered and says so); six are
+FuMi's own. The order follows the ST-50's voice slider: kotos, winds, the bowed voice, percussion.
 
 | # | Name | 名 | From |
 |---|---|---|---|
@@ -159,13 +192,16 @@ beneath, Suiko-style. Seven are the owner's picks from community DX7 banks on pa
 | 4 | Shakuhachi | 尺八 | PAN FL T A, a community patch |
 | 5 | Dragon Flt | 龍笛 | ALTO FLUTE, a community patch |
 | 6 | Bamboo Flt | 篠笛 | Bamboo Flt, a community patch |
-| 7 | Taiko | 太鼓 | Timpani.2 by Tim Garrett |
-| 8 | Hyoshigi | 拍子木 | **FuMi's own**: two hardwood sticks, a dry crack, the same on every key |
-| 9 | Mokugyo | 木魚 | **FuMi's own**: the wooden fish, a round pitched tok |
-| 10 | Koto Pluck | 爪音 | **FuMi's own**, found by `tools/koto_search.c` against the ST-50 measurements |
-| 11 | Koto Ring | 響 | **FuMi's own**, brighter |
-| 12 | Koto Warm | 名残 | **FuMi's own**, rounder |
-| 13 | Harp | 箜篌 | **FuMi's own** |
+| 7 | Kokyu | 胡弓 | After Viola.Ens by Tim Garrett (TX7-80B): the attack slowed and a bow tremolo added. The ST-50's bowed voice |
+| 8 | Taiko | 太鼓 | Timpani.2 by Tim Garrett |
+| 9 | Hyoshigi | 拍子木 | **FuMi's own**: two hardwood sticks, a dry crack, the same on every key |
+| 10 | Mokugyo | 木魚 | **FuMi's own**: the wooden fish, a round pitched tok |
+| 11 | Koto Pluck | 爪音 | **FuMi's own**, found by `tools/koto_search.c` against the ST-50 measurements |
+| 12 | Koto Ring | 響 | **FuMi's own**, brighter |
+| 13 | Koto Warm | 名残 | **FuMi's own**, rounder |
+| 14 | Harp | 箜篌 | **FuMi's own** |
+
+FuMi's own six respond to velocity (1.0.6), for the trill's accents and for MIDI.
 
 No Yamaha factory ROM voice is among them (a ROM2B pick was declined). The kanji come from Noto Sans CJK
 (SIL OFL 1.1) through `tools/gen_kanji.py`, which keeps only the characters these names use.

@@ -6,15 +6,15 @@
  *   black keys     the upper row fa# sol ti-flat do# re, or ornaments (SEQ switches)
  *   SELECT 本数    PRESETS 音色 (voice)    ALGORITHM scale IN / YO / MIN'YO
  *   KNOB 1-4       the page's four values; HOME: 余韻, trill rate, vibrato depth, reverb
- *   LFO ビブラート   ARP トリラー   GLO 単音/和音   SEL 調律 (tap: 平均律 / 純正律; hold: the tuning page)
+ *   LFO ビブラート   ARP トリラー   GLO 単音/和音 (hold: the trill pages)   SEL 調律 (tap: 平均律 / 純正律; hold: the tuning page)
  *   OCT- / OCT+    a note held: pitch bend down / up (sprung); none held: octave down / up
  *   HOME FX EDIT   the pages: HOME, SOUND, BEND.  ENV: the LOOP page.  SAVE saves (and it autosaves when quiet)
  *   REC            the looper (fumi.h): tap: arm (the first key starts the loop) / close / overdub on, off;
  *                  held 1 s: clear.   PLAY  tap: stop / start from the top; held 1 s: undo the top layer
  *   OCT- + OCT+ held 5 s: update mode (main_fm1.c; never reassigned) */
 
-enum { V_HOME, V_SOUND, V_BEND, V_TUNING, V_LOOP, NVIEWS };
-static const char *const VIEW_NAME[NVIEWS] = {"Home", "Sound", "Bend", "Tuning", "Loop"};
+enum { V_HOME, V_SOUND, V_BEND, V_TUNING, V_LOOP, V_TRILL, V_TRILL2, NVIEWS };
+static const char *const VIEW_NAME[NVIEWS] = {"Home", "Sound", "Bend", "Tuning", "Loop", "Trill", "Trill 2"};
 #define K_NONE 255
 static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {P_YOIN, P_TRILL_RATE, P_VIB_DEPTH, P_REVERB},
@@ -22,6 +22,8 @@ static const uint8_t VIEW_KNOB[NVIEWS][4] = {
     {P_BEND_UP, P_BEND_DOWN, P_BEND_TIME, P_SLIDE_TIME},
     {P_TUNING, P_DEPTH, P_FINE, P_A4},
     {P_LOOP_BPM, P_LOOP_BEATS, P_LOOP_CLICK, K_NONE},
+    {P_TRILL_VAR, P_TRILL_PAIR, P_TRILL_TA, P_TRILL_OROSHI},   /* GLO held: the trill's feel and defaults (1.0.6) */
+    {P_TRILL_FIRST, P_TRILL_JIT, K_NONE, K_NONE},             /* GLO held again: the second page */
 };
 #define HOLD_MS 1000u                              /* REC / PLAY held this long: clear / undo */
 
@@ -49,6 +51,7 @@ static struct {
     uint32_t btn, keys, btn_used;
     uint32_t enc_t[NE];
     uint32_t sel_t;                    /* SEL pressed at (its hold opens the tuning page) */
+    uint32_t glo_t;                    /* GLO pressed at (its hold opens the trill pages) */
     uint32_t hold_t[2];                /* REC, PLAY pressed at (held: clear, undo) */
     uint8_t oct_role[2];               /* OCT- / OCT+ while held: 0 up, 1 bend, 2 octave */
     uint8_t tuning_prev;               /* the 純正律 to come back to after a tap to 平均律 */
@@ -334,6 +337,8 @@ static void input(void)
                 oct_press(i == B_OCTUP);
             else if (i == B_SEL)
                 ui.sel_t = plat_ms();
+            else if (i == B_GLO)
+                ui.glo_t = plat_ms();
             else if (i == B_REC || i == B_PLAY)
                 ui.hold_t[i == B_PLAY] = plat_ms();
         } else if (i == B_OCTDN || i == B_OCTUP) {
@@ -345,6 +350,10 @@ static void input(void)
     if ((btn >> B_SEL & 1u) && !(ui.btn_used >> B_SEL & 1u) && plat_ms() - ui.sel_t > 400u) {
         ui.btn_used |= 1u << B_SEL;                /* SEL held: the tuning page, no toggle on release */
         set_view(V_TUNING);
+    }
+    if ((btn >> B_GLO & 1u) && !(ui.btn_used >> B_GLO & 1u) && plat_ms() - ui.glo_t > 400u) {
+        ui.btn_used |= 1u << B_GLO;                /* GLO held: the trill page; held again: its second page */
+        set_view(ui.view == V_TRILL ? V_TRILL2 : V_TRILL);
     }
     loop_hold(0, plat_ms());
     loop_hold(1, plat_ms());
@@ -594,7 +603,7 @@ static void draw_knobs(void)
 static void leds(void)
 {
     uint32_t b = 0, k = 0, i;
-    static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_FX, B_EDIT, B_SEL, B_ENV};
+    static const uint8_t VIEW_BTN[NVIEWS] = {B_HOME, B_FX, B_EDIT, B_SEL, B_ENV, B_GLO, B_GLO};
     uint32_t lp = fm_loop_state;
     b |= 1u << VIEW_BTN[ui.view];
     if (lp == LP_REC || lp == LP_DUB || (lp == LP_ARMED && (plat_ms() / 250u) & 1u))   /* REC: lit, blinking when armed */

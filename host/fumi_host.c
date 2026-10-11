@@ -554,6 +554,22 @@ int main(int argc, char **argv)
         else if (!strcmp(cmd, "reboot")) {
             memset(&proj, 0, sizeof proj);
             boot();
+        } else if (!strcmp(cmd, "store_v2")) {        /* store_v2 VOICE: a 1.0.5 (format 2) project on instrument VOICE, for the migration */
+            uint8_t raw[8 + 2 * PROJ_NPAR_V2 + 16];
+            uint32_t magic = PROJ_MAGIC, fmt = 2, i;
+            memset(raw, 0, sizeof raw);
+            memcpy(raw, &magic, 4);
+            memcpy(raw + 4, &fmt, 4);
+            for (i = 0; i < PROJ_NPAR_V2; i++) {
+                int16_t v = (int16_t)fm_param_info((int)i)->def;
+                if (i == P_VOICE)
+                    v = (int16_t)atoi(a);
+                else if (i == P_TRILL_VAR)
+                    v = 30;                       /* Trill var's old default */
+                memcpy(raw + 8 + 2 * i, &v, 2);
+            }
+            raw[8 + 2 * PROJ_NPAR_V2] = 1;
+            plat_store_save(OBJ_PROJ, raw, sizeof raw);
         } else if (!strcmp(cmd, "echo"))
             printf("%s", line + 5);
         else {
